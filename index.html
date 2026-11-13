@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ntvdtWCoLy4oB9JrScFOeA3Sqqm1vYn3AahajfUlw+E='; style-src 'sha256-z/ASptUTPFiyWEjhiinQ+SFEOLVjLfgm1gZ9eNSCV50='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KU6fnDlBvDMwO1jMjo7/0OlsxKsQndwolu7GXl7ipOw='; style-src 'sha256-z/ASptUTPFiyWEjhiinQ+SFEOLVjLfgm1gZ9eNSCV50='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -888,7 +888,9 @@ var PHONE = (function () {
     var t = String(text || "");
     if (!t.trim()) { return "nothing to send"; }
     if (t.length > MAX_PROMPT) { return "a prompt from the phone is at most " + MAX_PROMPT + " characters (this one is " + t.length + ")"; }
-    if (/^\s*\//.test(t)) { return "slash commands run at the Mac only"; }
+    if (/^\s*\//.test(t) && !/^\s*\/gt(-[a-z0-9]+)?:[a-z0-9][a-z0-9-]*(\s|$)/.test(t)) {
+      return "only gt commands (/gt:...) run from the phone; Claude Code's own slash commands run at the Mac";
+    }
     if (/[\x00-\x08\x0b-\x1f\x7f]/.test(t)) { return "a prompt may not hold control characters"; }
     return null;
   }
