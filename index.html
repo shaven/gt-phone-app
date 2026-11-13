@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KU6fnDlBvDMwO1jMjo7/0OlsxKsQndwolu7GXl7ipOw='; style-src 'sha256-z/ASptUTPFiyWEjhiinQ+SFEOLVjLfgm1gZ9eNSCV50='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oYGohPJT7kQWrQ4QHqAXzagIxZNykQ3OD9L46MU6s2A='; style-src 'sha256-z/ASptUTPFiyWEjhiinQ+SFEOLVjLfgm1gZ9eNSCV50='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -924,7 +924,34 @@ var PHONE = (function () {
     if (a.last_refused) { w += "; last refusal: " + a.last_refused.type + " (" + a.last_refused.code + "), " + ago(nowS - a.last_refused.at); }
     return w;
   }
-  return { MAX_PROMPT: MAX_PROMPT, PREFS_VERSION: PREFS_VERSION, PREF_ENUMS: PREF_ENUMS, PREF_BOOLS: PREF_BOOLS, SIZES: SIZES,
+  // gt slash commands the Mac listed in the feed ({c: "/gt:gt-open", d: "..."}): autocomplete, and the short form
+  // (/gt-open -> /gt:gt-open) that the Claude prompt also completes for you.
+  function cmdList(st) {
+    var a = st && Array.isArray(st.commands) ? st.commands : [], out = [], i;
+    for (i = 0; i < a.length && out.length < 200; i++) {
+      if (a[i] && typeof a[i].c === "string" && /^\/gt(-[a-z0-9]+)?:[a-z0-9][a-z0-9-]*$/.test(a[i].c)) {
+        out.push({ c: a[i].c, d: String(a[i].d || "").slice(0, 90) });
+      }
+    }
+    return out;
+  }
+  function cmdMatches(cmds, text) {
+    var t = String(text || "").replace(/^\s+/, ""), q, a = [], b = [];
+    if (t.charAt(0) !== "/" || /\s/.test(t)) { return []; }
+    q = t.slice(1).toLowerCase();
+    cmds.forEach(function (x) {
+      var full = x.c.slice(1), name = full.split(":")[1];
+      if (!q || name.indexOf(q) === 0 || full.indexOf(q) === 0) { a.push(x); } else if (full.indexOf(q) > 0) { b.push(x); }
+    });
+    return a.concat(b).slice(0, 8);
+  }
+  function canonical(cmds, text) {
+    var s = String(text || "").replace(/^\s+/, ""), m = /^\/([a-z0-9][a-z0-9-]{0,40})(?=\s|$)/.exec(s), hits;
+    if (!m) { return text; }
+    hits = cmds.filter(function (x) { return x.c.split(":")[1] === m[1]; });
+    return hits.length === 1 ? hits[0].c + s.slice(m[0].length) : text;
+  }
+  return { MAX_PROMPT: MAX_PROMPT, PREFS_VERSION: PREFS_VERSION, cmdList: cmdList, cmdMatches: cmdMatches, canonical: canonical, PREF_ENUMS: PREF_ENUMS, PREF_BOOLS: PREF_BOOLS, SIZES: SIZES,
            prefsDefaults: prefsDefaults, cleanPrefs: cleanPrefs, levelOf: levelOf, pollMs: pollMs, rateWait: rateWait, ago: ago,
            feedOk: feedOk, safeHref: safeHref, inline: inline, blocks: blocks, rows: rows, activity: activity, card: card,
            chips: chips, sessions: sessions, composerWhy: composerWhy, promptCheck: promptCheck, ackWords: ackWords,
@@ -1325,12 +1352,16 @@ function renderActivity() {
 }
 function renderSugg() {
   const box = $("sugg"); clear(box);
-  const list = !viewing && prefs.sugg && last && last.session && last.session.phone_prompts ? (last.suggestions || []) : [];
+  const canSend = !viewing && last && last.session && last.session.phone_prompts;
+  const hits = canSend ? PHONE.cmdMatches(PHONE.cmdList(last), $("input").value) : [];
+  const list = hits.length ? hits.map(h => ({ label: h.c, prompt: h.c + " ", cmd: true, d: h.d }))
+    : (canSend && prefs.sugg ? (last.suggestions || []) : []);
   box.hidden = !list.length;
   list.forEach(s => {
-    const b = el("button", null, s.label); b.type = "button"; b.setAttribute("aria-label", "Suggestion: " + s.prompt);
+    const b = el("button", null, s.label); b.type = "button"; b.setAttribute("aria-label", (s.cmd ? "Command: " + s.d + " " : "Suggestion: ") + s.prompt);
     b.onclick = () => {
-      if (prefs.suggTap === "send") { $("input").value = s.prompt; sendPrompt(); }
+      if (s.cmd) { $("input").value = s.prompt; $("input").focus(); autosize(); renderSugg(); }
+      else if (prefs.suggTap === "send") { $("input").value = s.prompt; sendPrompt(); }
       else { $("input").value = s.prompt; $("input").focus(); autosize(); }
     };
     box.appendChild(b);
@@ -1396,7 +1427,7 @@ function renderAll() {
 // ---- the composer
 function autosize() { const i = $("input"); i.style.height = "auto"; i.style.height = Math.min(i.scrollHeight, 320) + "px"; store.set("draft", i.value); }
 async function sendPrompt() {
-  const s = last && last.session, text = $("input").value;
+  const s = last && last.session, text = PHONE.canonical(PHONE.cmdList(last), $("input").value);
   const why = PHONE.composerWhy(last, viewing) || PHONE.promptCheck(text);
   if (why) { say("note", why); return; }
   $("input").value = ""; store.del("draft"); autosize();
@@ -1577,7 +1608,12 @@ function wire() {
     if (s && !viewing && (s.state === "running" || s.state === "waiting_approval" || s.state === "starting")) act("interrupt", { session: s.id }, null);
     else sendPrompt();
   };
-  $("input").addEventListener("input", autosize);
+  $("input").addEventListener("input", () => {
+    // /gt-open + a space becomes /gt:gt-open in the box, as the Claude prompt completes it
+    const i = $("input"), v = i.value, v2 = /^\s*\/[a-z0-9-]+\s/.test(v) ? PHONE.canonical(PHONE.cmdList(last), v) : v;
+    if (v2 !== v) { const pos = i.selectionStart + (v2.length - v.length); i.value = v2; i.setSelectionRange(pos, pos); }
+    autosize(); renderSugg();
+  });
   $("input").addEventListener("keydown", e => { if (prefs.enterSends && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendPrompt(); } });
   $("b-sessions").onclick = openSessions;
   $("b-settings").onclick = () => openSettings(false);
