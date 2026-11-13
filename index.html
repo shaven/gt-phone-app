@@ -1,0 +1,1611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ntvdtWCoLy4oB9JrScFOeA3Sqqm1vYn3AahajfUlw+E='; style-src 'sha256-z/ASptUTPFiyWEjhiinQ+SFEOLVjLfgm1gZ9eNSCV50='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<title>gt phone</title>
+<!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
+     repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
+     must be added to connect-src above by whoever hosts it. Re-hash script-src and style-src after any edit
+     (tests/test_gt_phone_page.py names the hashes it expects). The block between gtcon-copy markers is the gt
+     console's own GTCON code (claude.html), copied verbatim: the same test checks every member is identical. -->
+<style>
+:root { --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --line: #d9d9de; --card: #f4f4f6; --bubble: #ececf0;
+  --accent: #b4552d; --accent-fg: #ffffff; --ok: #1b7f3b; --bad: #b3261e; --warn: #8a5a00; --code: #f0f0f3;
+  --fs: 17px; --gap: 12px; --pad: 10px; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]):not([data-theme="contrast"]) { --bg: #1a1a1c;
+  --fg: #ececee; --muted: #a1a1a6; --line: #3a3a3e; --card: #262629; --bubble: #333338; --accent: #e08a62;
+  --accent-fg: #1a1a1c; --ok: #5cc27c; --bad: #ff7a70; --warn: #e0b04f; --code: #222225; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #1a1a1c; --fg: #ececee; --muted: #a1a1a6; --line: #3a3a3e; --card: #262629;
+  --bubble: #333338; --accent: #e08a62; --accent-fg: #1a1a1c; --ok: #5cc27c; --bad: #ff7a70; --warn: #e0b04f;
+  --code: #222225; color-scheme: dark; }
+:root[data-theme="contrast"] { --bg: #000000; --fg: #ffffff; --muted: #e0e0e0; --line: #ffffff; --card: #000000;
+  --bubble: #1f1f1f; --accent: #ffd400; --accent-fg: #000000; --ok: #7dff9a; --bad: #ff8a80; --warn: #ffd400;
+  --code: #111111; color-scheme: dark; }
+:root[data-density="compact"] { --gap: 6px; --pad: 6px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
+body { font: var(--fs)/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden;
+  -webkit-text-size-adjust: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { min-height: 44px; min-width: 44px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card); cursor: pointer; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+button.danger { color: var(--bad); border-color: var(--bad); }
+button.link { border: 0; background: none; color: var(--accent); padding: 4px 6px; min-height: 32px; }
+button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+#app { display: flex; flex-direction: column; height: 100%; max-width: 46rem; margin: 0 auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+#top { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+#title-box { flex: 1 1 auto; min-width: 0; text-align: center; }
+#title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chips { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 2px; }
+.chip { font-size: 0.72em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted);
+  white-space: nowrap; }
+.chip.warn { color: var(--warn); border-color: var(--warn); }
+.chip.alert, .chip.bad { color: var(--bad); border-color: var(--bad); }
+.chip.ok { color: var(--ok); border-color: var(--ok); }
+#conn { font-size: 0.78em; color: var(--muted); padding: 3px 12px; display: flex; gap: 8px; align-items: center;
+  justify-content: center; flex-wrap: wrap; }
+#conn.bad { color: var(--bad); }
+#conn.warn { color: var(--warn); }
+#viewing { font-size: 0.85em; background: var(--card); border-bottom: 1px solid var(--line); padding: 6px 12px;
+  display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+#scroll { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+  padding: 8px 14px 12px; overscroll-behavior: contain; }
+#ptr { text-align: center; font-size: 0.8em; color: var(--muted); height: 0; overflow: hidden; transition: height 0.15s; }
+#ptr.on { height: 28px; }
+.row { margin: var(--gap) 0; overflow-wrap: anywhere; }
+.row.user { display: flex; flex-direction: column; align-items: flex-end; }
+.bubble { background: var(--bubble); border-radius: 18px 18px 4px 18px; padding: var(--pad) 14px; max-width: 86%;
+  white-space: pre-wrap; }
+.tag { font-size: 0.72em; color: var(--muted); margin-top: 2px; }
+.row.claude .md > :first-child { margin-top: 0; }
+.row.meta { font-size: 0.82em; color: var(--muted); border-left: 2px solid var(--line); padding: 2px 8px; white-space: pre-wrap; }
+.row.meta .who { font-weight: 600; margin-right: 6px; }
+.row.error { color: var(--bad); border-left-color: var(--bad); }
+.row.deny { color: var(--warn); border-left-color: var(--warn); }
+.stamp { font-size: 0.7em; color: var(--muted); }
+.md p { margin: 0.4em 0; white-space: pre-wrap; }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-size: 1.05em; margin: 0.8em 0 0.3em; }
+.md ul, .md ol { margin: 0.3em 0; padding-left: 1.4em; }
+.md blockquote { margin: 0.4em 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted); white-space: pre-wrap; }
+.md code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; background: var(--code);
+  padding: 1px 4px; border-radius: 4px; }
+.md hr { border: 0; border-top: 1px solid var(--line); }
+.md a { color: var(--accent); }
+.md table { border-collapse: collapse; display: block; overflow-x: auto; font-size: 0.9em; }
+.md td, .md th { border: 1px solid var(--line); padding: 3px 6px; }
+.codebox { position: relative; margin: 0.5em 0; background: var(--code); border: 1px solid var(--line); border-radius: 10px; }
+.codebox .bar { display: flex; justify-content: space-between; align-items: center; font-size: 0.75em;
+  color: var(--muted); padding: 0 4px 0 10px; border-bottom: 1px solid var(--line); }
+.codebox pre { margin: 0; padding: 8px 10px; overflow-x: auto; }
+.codebox pre code { background: none; padding: 0; white-space: pre; }
+.streaming::after { content: "\258D"; animation: blink 1s steps(2) infinite; color: var(--muted); }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .streaming::after, #ptr { animation: none; transition: none; } }
+:root[data-motion="reduce"] .streaming::after { animation: none; }
+.more { font-size: 0.85em; }
+#cards { position: sticky; bottom: 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 8px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); }
+.card h3 { margin: 0 0 4px; font-size: 1em; }
+.card .what { font-family: ui-monospace, Menlo, monospace; font-size: 0.82em; white-space: pre-wrap; max-height: 12em;
+  overflow: auto; background: var(--code); border-radius: 8px; padding: 6px 8px; }
+.card .why, .card .left { font-size: 0.82em; color: var(--muted); }
+.btns { display: flex; gap: 8px; margin-top: 8px; }
+.btns button { flex: 1 1 0; }
+#outbox .row .bubble { opacity: 0.75; }
+#jump { position: fixed; right: 16px; bottom: calc(110px + env(safe-area-inset-bottom)); border-radius: 999px;
+  background: var(--card); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+#activity { font-size: 0.85em; color: var(--muted); padding: 2px 16px; min-height: 0; }
+.sugg { display: flex; gap: 6px; overflow-x: auto; padding: 4px 12px; scrollbar-width: none; }
+.sugg button { flex: 0 0 auto; min-height: 36px; padding: 4px 12px; border-radius: 999px; font-size: 0.85em; }
+#composer { display: flex; gap: 8px; align-items: flex-end; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); }
+#input { flex: 1 1 auto; resize: none; max-height: 40vh; min-height: 44px; padding: 10px 14px; border-radius: 22px;
+  border: 1px solid var(--line); background: var(--card); }
+#send { border-radius: 999px; width: 44px; padding: 0; font-size: 1.2em; }
+#note { font-size: 0.8em; color: var(--warn); padding: 0 16px; }
+.sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10;
+  padding: env(safe-area-inset-top) calc(16px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); }
+.sheet h2 { font-size: 1.1em; margin: 10px 0; }
+.sheet h3 { font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 18px 0 6px; }
+.set { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid var(--line); }
+.set label { flex: 1 1 auto; }
+.set .help { display: block; font-size: 0.78em; color: var(--muted); }
+.set select { max-width: 55%; min-height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); padding: 4px 6px; }
+.set input[type="checkbox"] { width: 26px; height: 26px; }
+.srow { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 10px 12px; }
+.srow .sub { display: block; font-size: 0.78em; color: var(--muted); }
+.srow.live { border-color: var(--accent); }
+.ro { font-size: 0.88em; padding: 6px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+.ro span:last-child { color: var(--muted); text-align: right; }
+.page { max-width: 40rem; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px 32px; overflow-y: auto; height: 100%; }
+.page input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+.page label { display: block; margin: 12px 0 4px; font-size: 0.9em; }
+.code6 { font-family: ui-monospace, Menlo, monospace; font-size: 2rem; letter-spacing: 0.2em; text-align: center; margin: 12px 0; }
+.muted { color: var(--muted); font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="app" hidden>
+  <header id="top">
+    <button id="b-sessions" class="icon" type="button" aria-label="Sessions">&#9776;</button>
+    <div id="title-box"><div id="title">gt phone</div><div id="chips" class="chips"></div></div>
+    <button id="b-settings" class="icon" type="button" aria-label="Settings">&#8943;</button>
+  </header>
+  <div id="conn" role="status"></div>
+  <div id="viewing" hidden></div>
+  <main id="scroll">
+    <div id="ptr" aria-hidden="true"></div>
+    <div id="log" role="log" aria-label="Conversation" aria-live="off"></div>
+    <div id="outbox"></div>
+    <div id="cards" aria-label="Approval requests"></div>
+  </main>
+  <button id="jump" type="button" hidden aria-label="Jump to the newest message">&#8595;</button>
+  <div id="activity" role="status"></div>
+  <div id="sugg" class="sugg" aria-label="Suggested prompts"></div>
+  <div id="composer">
+    <textarea id="input" rows="1" maxlength="8000" aria-label="Message Claude" placeholder="Message Claude"></textarea>
+    <button id="send" class="primary" type="button" aria-label="Send">&#8593;</button>
+  </div>
+  <div id="note" role="status"></div>
+</div>
+<div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+  <div class="sheet-head"><h2 id="sheet-title"></h2><button id="sheet-close" class="icon" type="button" aria-label="Close">&#10005;</button></div>
+  <div id="sheet-body"></div>
+</div>
+<section id="pairing" class="page" hidden>
+  <h2>Pair with your Mac</h2>
+  <p class="muted" id="pair-repo"></p>
+  <label for="pair-name">Name for this phone</label>
+  <input id="pair-name" maxlength="32" value="iPhone" autocomplete="off">
+  <label for="pair-token">GitHub token (fine-grained, contents read and write on that one repository)</label>
+  <input id="pair-token" type="password" autocomplete="off" spellcheck="false">
+  <p><button id="pair-go" class="primary" type="button">Pair</button></p>
+  <div id="pair-code-box" hidden>
+    <p>Type this code at the Mac:</p>
+    <div class="code6" id="pair-code"></div>
+  </div>
+  <p class="muted" id="pair-msg"></p>
+</section>
+<section id="unpaired" class="page" hidden>
+  <h2>gt phone</h2>
+  <p>Not paired. At the home Mac run <code>gt_phone_relay.py pair</code> (or Pair a phone in the gt console) and
+  scan the code it shows with this phone's camera.</p>
+  <p class="muted" id="unpaired-why"></p>
+</section>
+<div id="announce" class="sr" aria-live="assertive"></div>
+<script>
+"use strict";
+/* gt-phone-crypto:begin -- pure functions, also run by the Mac's interop test under node */
+const FORMAT = "gt-phone/1";
+const enc = new TextEncoder(), dec = new TextDecoder();
+function b64u(bytes) {
+  let s = ""; const b = new Uint8Array(bytes);
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function unb64u(text) {
+  if (typeof text !== "string" || !/^[A-Za-z0-9_-]*$/.test(text)) throw new Error("not base64url");
+  const s = atob(text.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((text.length + 3) % 4));
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+function hex(bytes) { return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join(""); }
+function aad(direction, pair, path) { return enc.encode(FORMAT + "|" + direction + "|" + pair + "|" + path); }
+async function seal(key, direction, pair, path, plain) {
+  const n = crypto.getRandomValues(new Uint8Array(12));
+  const c = await crypto.subtle.encrypt({ name: "AES-GCM", iv: n, additionalData: aad(direction, pair, path) }, key, plain);
+  return enc.encode(JSON.stringify({ c: b64u(c), n: b64u(n), p: pair, v: FORMAT }));
+}
+async function unseal(key, direction, pair, path, raw) {
+  const doc = JSON.parse(dec.decode(raw));
+  if (!doc || doc.v !== FORMAT || doc.p !== pair) throw new Error("not a sealed file for this pairing");
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64u(doc.n), additionalData: aad(direction, pair, path) },
+                                            key, unb64u(doc.c));
+  return new Uint8Array(plain);
+}
+async function signBody(priv, body) {
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, priv, enc.encode(body));
+  return JSON.stringify({ body: body, sig: b64u(sig) });
+}
+async function makeRequest(K, priv, pair, type, fields, nowMs) {
+  const id = hex(crypto.getRandomValues(new Uint8Array(16)));
+  const ts = Math.floor(nowMs / 1000);
+  const body = JSON.stringify(Object.assign({ v: 1, type: type, id: id, pair: pair, ts: ts, exp: ts + 240 }, fields));
+  const path = "phone/in/" + id + ".json";
+  return { id: id, path: path, bytes: await seal(K, "p2m", pair, path, enc.encode(await signBody(priv, body))) };
+}
+async function makePairRequest(K, keyPair, pair, name, nowMs) {
+  const pub = new Uint8Array(await crypto.subtle.exportKey("raw", keyPair.publicKey));
+  const ts = Math.floor(nowMs / 1000);
+  const body = JSON.stringify({ v: 1, type: "pair", id: hex(crypto.getRandomValues(new Uint8Array(16))), pair: pair,
+                                pub: b64u(pub), name: name, ts: ts, exp: ts + 240 });
+  const path = "phone/in/pair-" + pair + ".json";
+  return { path: path, pub: pub, bytes: await seal(K, "p2m", pair, path, enc.encode(await signBody(keyPair.privateKey, body))) };
+}
+async function confirmCode(rawK, pair, pub) {
+  const hk = await crypto.subtle.importKey("raw", rawK, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const msg = new Uint8Array([...enc.encode("gt-phone/1 confirm|" + pair + "|"), ...pub]);
+  const d = new Uint8Array(await crypto.subtle.sign("HMAC", hk, msg));
+  const n = ((d[0] << 24) >>> 0) + (d[1] << 16) + (d[2] << 8) + d[3];
+  return String(n % 1000000).padStart(6, "0");
+}
+/* gt-phone-crypto:end */
+
+/* gtcon-copy:begin -- the gt console's own view levels, event words, activity line, mode and model chips
+   (golden-thread/<version>/templates/ui/claude.html, GTCON), copied verbatim; tests/test_gt_phone_page.py checks */
+var GTCON = (function () {
+  var LEVELS = ["minimal", "simple", "answers", "steps", "everything"];
+  function plainLevel(level) { return level === "simple" || level === "minimal"; }
+  var LEVEL_SHOWS = { minimal: { thinking: false, steps: false, system: false, narration: false, decisions: false, stamps: false },
+                      simple: { thinking: false, steps: false, system: false, narration: false, decisions: false, stamps: false },
+                      answers: { thinking: false, steps: false, system: false, narration: true, decisions: true, stamps: true },
+                      steps: { thinking: false, steps: true, system: false, narration: true, decisions: true, stamps: true },
+                      everything: { thinking: true, steps: true, system: true, narration: true, decisions: true, stamps: true } };
+  var CAT_TOGGLE = { thinking: "thinking", step: "steps", system: "system" };
+  function viewFor(level, show) {
+    if (!LEVEL_SHOWS[level]) { level = "steps"; }
+    var s = {}, base = LEVEL_SHOWS[level];
+    Object.keys(base).forEach(function (k) { s[k] = show && typeof show[k] === "boolean" && !plainLevel(level) ? show[k] : base[k]; });
+    return { level: level, show: s };
+  }
+  function narration(list) {
+    var out = {}, texts = [];
+    (list || []).forEach(function (e) {
+      if (!e) { return; }
+      if (e.kind === "user") { texts = []; return; }
+      if (e.kind === "assistant_text") { texts.push(e); return; }
+      if (e.kind === "tool_use") { texts.forEach(function (t) { out[t.seq] = true; }); texts = []; }
+    });
+    return out;
+  }
+  var STAMP_LINE = /^[ \t]*\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?(?:[ \t]*(?:[A-Z]{2,5}|Z|UTC[+-]\d{1,2}|[+-]\d{2}:?\d{2}))?[ \t]*(?:\r?\n|$)/;
+  function stripStamp(text) {
+    var t = String(text || ""), m = STAMP_LINE.exec(t);
+    return m ? t.slice(m[0].length).replace(/^(?:[ \t]*\r?\n)+/, "") : t;
+  }
+  function plainMarks(list, open) {
+    var dec = {}, last = {}, turnLast = null, turns = [];
+    (list || []).forEach(function (e) {
+      if (!e) { return; }
+      var d = e.data || {};
+      if (e.kind === "approval_decision" && typeof d.request_id === "string") { dec[d.request_id] = d.decision === "allow" ? "allow" : "deny"; }
+      if (e.kind === "user" && e.cat !== "system") { turns.push(turnLast); turnLast = null; return; }
+      if (e.kind === "assistant_text" && !d.partial && String(d.text || "").trim()) { turnLast = e.seq; }
+      if (e.kind === "tool_use") { turnLast = null; }            // a text before a tool call is narration
+    });
+    turns.forEach(function (q) { if (q !== null) { last[q] = true; } });
+    if (turnLast !== null && !open) { last[turnLast] = true; }
+    return { dec: dec, last: last };
+  }
+  function visible(e, view, narr, marks) {
+    if (!e || e.kind === "error") { return true; }
+    var d = e.data || {}, show = (view && view.show) || {}, lv = view && view.level, dec = (marks && marks.dec) || {};
+    if (e.kind === "approval_request") {
+      // Simple hides the row of an allowed request; Minimal shows only a denied (or expired) one: the card is the ask
+      if (lv === "simple") { return dec[d.request_id] !== "allow"; }
+      if (lv === "minimal") { return dec[d.request_id] === "deny"; }
+      return true;
+    }
+    if (e.kind === "cost" || e.cat === "cost") { return false; }
+    if (e.kind === "assistant_text" && show.stamps === false && !d.partial && !stripStamp(d.text).trim() && String(d.text || "").trim()) { return false; }
+    if (plainLevel(lv)) {
+      var low = !e.min_level || e.min_level === "answers" || e.min_level === "simple" || e.min_level === "minimal";
+      if (e.kind === "user") { return low && e.cat !== "system"; }
+      if (e.kind === "assistant_text" && lv === "minimal") { return low && !d.partial && !!(marks && marks.last && marks.last[e.seq]); }
+      if (e.kind === "assistant_text") { return low && !(narr && narr[e.seq]); }
+      if (e.kind === "approval_decision") { return !d.auto && d.decision !== "allow"; }   // a denial is news; an Allowed is not
+      return e.kind === "mode_change";
+    }
+    if (e.kind === "assistant_text" && show.narration === false && narr && narr[e.seq]) { return false; }
+    if (e.kind === "approval_decision" && show.decisions === false && d.decision !== "deny") { return false; }
+    var t = CAT_TOGGLE[e.cat];
+    return t ? !!show[t] : true;
+  }
+  function mkey(e) {
+    var d = (e && e.data) || {};
+    return (e && (e.kind === "assistant_text" || e.kind === "thinking") && d.message_id) ? e.kind + "|" + d.message_id : "";
+  }
+  var MIN_SUMMARY_MAX = 200;
+  function minimalAnswer(text) {
+    var t = String(text || "").replace(/\r\n/g, "\n").trim();
+    if (!t) { return { text: "", kind: "empty", whole: true }; }
+    var paras = [], cur = [], fence = false;
+    function flush(code) { if (cur.length) { paras.push({ code: code, text: cur.join("\n") }); } cur = []; }
+    t.split("\n").forEach(function (l) {
+      if (/^\s*(```|~~~)/.test(l)) {
+        if (fence) { cur.push(l); flush(true); fence = false; } else { flush(false); cur.push(l); fence = true; }
+        return;
+      }
+      if (!fence && !l.trim()) { flush(false); return; }
+      cur.push(l);
+    });
+    if (cur.length) { paras.push({ code: fence, text: cur.join("\n") }); }
+    var prose = paras.filter(function (p) { return !p.code && p.text.trim(); });
+    if (!prose.length) { return { text: "", kind: "empty", whole: false }; }
+    var lastP = prose[prose.length - 1].text.trim(), tail = lastP.replace(/[\s*_`)\]"'\u201d]+$/, "");
+    if (/[?:]$/.test(tail) && !/^\s*([-*+]|\d+[.)])\s/.test(lastP.split("\n").slice(-1)[0])) {
+      return { text: lastP, kind: "question", whole: lastP === t };
+    }
+    var first = "", heading = "";                    // a heading is no sentence: it is used only when nothing else is there
+    for (var i = 0; i < prose.length && !first; i++) {
+      var lines = prose[i].text.split("\n");
+      for (var j = 0; j < lines.length; j++) {
+        var hd = /^\s*#{1,6}\s+/.test(lines[j]);
+        var x = lines[j].replace(/^\s*(#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)/, "").replace(/\*\*|__/g, "").trim();
+        if (!x || /^\|/.test(x)) { continue; }
+        if (hd) { heading = heading || x; continue; }
+        first = x;
+        break;
+      }
+    }
+    first = first || heading;
+    var m = /^(.*?[.!?])(\s|$)/.exec(first), one = m ? m[1] : first;
+    if (one.length > MIN_SUMMARY_MAX) { one = one.slice(0, MIN_SUMMARY_MAX - 1).replace(/\s+\S*$/, "") + "\u2026"; }
+    return { text: one, kind: "summary", whole: one === t };
+  }
+  function plainAsk(d) {
+    d = d || {};
+    var t = String(d.tool || ""), inp = d.input && typeof d.input === "object" ? d.input : {}, w;
+    if (d.kind === "question") { w = "Ask you a question"; }
+    else if (d.kind === "plan") { w = "Start on a plan"; }
+    else if (t === "Read" || t === "NotebookRead") { w = /\.md$/i.test(String(inp.file_path || inp.notebook_path || "")) ? "Read your project notes" : "Read a file"; }
+    else if (t === "Edit" || t === "MultiEdit" || t === "Write" || t === "NotebookEdit") { w = "Change a file"; }
+    else if (t === "Bash" || t === "BashOutput" || t === "KillShell" || t === "PowerShell") { w = "Run a command"; }
+    else if (t === "Grep" || t === "Glob" || t === "LS") { w = "Look through your files"; }
+    else if (t === "WebFetch") { w = "Open a web page"; }
+    else if (t === "WebSearch") { w = "Search the web"; }
+    else if (t === "Agent" || t === "Task") { w = "Start a helper"; }
+    else if (t === "TodoWrite") { w = "Update its to-do list"; }
+    else if (t === "Skill") { w = "Use one of its skills"; }
+    else if (/^mcp__/.test(t)) { w = "Use a connected service"; }
+    else { w = "Use a tool"; }
+    return w + (d.agent_id ? " (for a helper)" : "");
+  }
+  var PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+  function projectFor(arg, projects) {
+    var a = String(arg || "").toLowerCase(), list = (projects || []).filter(function (p) { return typeof p === "string" && PLAIN_NAME.test(p); });
+    if (!a) { return ""; }
+    function one(f) { var hit = list.filter(f); return hit.length === 1 ? hit[0] : ""; }
+    var exact = list.filter(function (p) { return p.toLowerCase() === a; })[0];
+    return exact || one(function (p) { return p.toLowerCase().split(/[-_.]+/).map(function (x) { return x.charAt(0); }).join("") === a; }) ||
+      one(function (p) { return p.toLowerCase().indexOf(a) === 0; }) || (PLAIN_NAME.test(arg) ? String(arg) : "");
+  }
+  function simpleActivity(text, projects, verb) {
+    var t = String(text || "").trim(), v = verb || "Loading";
+    if (t.charAt(0) !== "/") { return "Working"; }
+    var words = t.split(/\s+/), name = words[0].slice(1);
+    name = name.indexOf(":") >= 0 ? name.slice(name.indexOf(":") + 1) : name;
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/.test(name)) { return "Working"; }
+    if (name === "gt-open" || name === "open") {
+      var proj = projectFor(words[1], projects);
+      return proj ? v + " '" + proj + "'" : v + " your project";
+    }
+    return "Running '" + name + "'";
+  }
+  var LIMIT_WORDS = "This session reached its limit and was stopped.";
+  var FIGURES = /\$\s?\d|\b\d[\d,.]*\s*(?:k\s*)?tokens?\b|\btokens?\b|\busd\b/i;
+  function plain(text) { return FIGURES.test(String(text || "")) ? "" : String(text || ""); }
+  function describe(e) {
+    var d = (e && e.data) || {}, k = e && e.kind;
+    if (k === "cost") { return null; }
+    if (k === "thinking") { return { who: "Thinking", text: "thinking" + (d.partial ? " \u2026" : "") }; }
+    if (k === "assistant_text") { return { who: "Claude", text: (d.text || "") + (d.partial ? " \u2026" : "") }; }
+    if (k === "tool_use") { return { who: "Tool call", text: (d.name || "tool") + ": " + (d.input_summary || "") }; }
+    if (k === "tool_result") { return { who: "Tool result", text: (d.is_error ? "error: " : "") + (d.summary || "") }; }
+    if (k === "approval_request") { return { who: "Approval asked", text: approvalLabel(d) }; }
+    if (k === "approval_decision" && d.auto && d.decision === "deny") {   // Auto until refused a protected path
+      return { who: "Refused without asking", text: "refused (Auto until): " + (d.summary || d.tool || "a tool call") + (d.reason ? ": " + plain(d.reason) : "") };
+    }
+    if (k === "approval_decision" && d.auto) {
+      // a quiet Steps-level row: Accept edits or Auto let it through by the runner's rules, nothing was asked
+      return { who: "Allowed without asking", text: "allowed without asking: " + (d.summary || d.tool || "a tool call"), quiet: true };
+    }
+    if (k === "approval_decision") {
+      // the page's record of what pressed the button ("via: ...", see decideVia) shows in the Everything view only
+      var why = String(d.reason || ""), via = "", at = why.indexOf("via: ");
+      if (at === 0 || (at > 3 && why.slice(at - 3, at) === " \u00b7 ")) { via = why.slice(at + 5); why = at ? why.slice(0, at - 3) : ""; }
+      return { who: "Approval", text: (d.decision === "allow" ? "Allowed once" : "Denied") + " by " + (d.by || "?") + (why ? ": " + why : ""),
+               via: via };
+    }
+    if (k === "mode_change") { return modeRow(d); }
+    if (k === "error" || k === "end") {
+      var t = String(d.text || d.reason || "");
+      if (/budget|limit|max_budget/i.test(t)) { return { who: k === "end" ? "Session ended" : "Error", text: LIMIT_WORDS }; }
+      if (k === "error" && /not logged in/i.test(t)) { return { who: "Error", text: "NOT_LOGGED_IN" }; }
+      return { who: k === "end" ? "Session ended" : "Error", text: plain(t) || (k === "end" ? "ended" : "an error (details are in the session log)") };
+    }
+    return { who: "System", text: plain((d.subtype ? d.subtype + ": " : "") + (d.brief || d.text || "")) || (d.subtype || "system") };
+  }
+  function simpleWords(e) {
+    var d = (e && e.data) || {};
+    if (e && e.kind === "approval_request") { return { who: "Asked you", text: "Claude asked to: " + plainAsk(d) }; }
+    if (e && e.kind === "approval_decision" && !d.auto) { return { who: "Your answer", text: d.decision === "allow" ? "Allowed" : "Not allowed" }; }
+    return null;
+  }
+  function stripTool(summary, tool) {
+    var s = String(summary || ""), t = String(tool || "");
+    if (t && s.indexOf(t + ": ") === 0) { return s.slice(t.length + 2); }
+    if (t && s.indexOf(t + " ") === 0 && /^[\[{]/.test(s.slice(t.length + 1))) { return s.slice(t.length + 1); }
+    return s;
+  }
+  function approvalLabel(d) {
+    d = d || {};
+    var head = d.kind === "question" ? "Question" : d.kind === "plan" ? "Plan to approve" : (d.tool || "tool");
+    var sum = d.kind === "question" || d.kind === "plan" ? String(d.summary || "") : stripTool(d.summary, d.tool);
+    return head + (d.agent_id ? " (subagent " + d.agent_id + ")" : "") + ": " + sum;
+  }
+  var SUMMARY_KEYS = ["command", "file_path", "path", "pattern", "url", "query", "prompt"];
+  function approvalFull(d) {
+    d = d || {};
+    var inp = d.input;
+    if (inp && typeof inp === "object" && !Array.isArray(inp)) {
+      for (var i = 0; i < SUMMARY_KEYS.length; i++) { if (typeof inp[SUMMARY_KEYS[i]] === "string") { return inp[SUMMARY_KEYS[i]]; } }
+    }
+    if (inp !== undefined && inp !== null && !(typeof inp === "object" && !Array.isArray(inp) && !Object.keys(inp).length)) {
+      try { return JSON.stringify(inp, null, 2); } catch (e) { /* the summary stands */ }
+    }
+    return stripTool(d.summary, d.tool);
+  }
+  function approvalMore(d) {
+    var shown = stripTool((d || {}).summary, (d || {}).tool), full = approvalFull(d);
+    return / \[cut\]$/.test(shown) || (full.length > shown.length && full !== shown);
+  }
+  var CARD_GUARD_MS = 700;
+  function cardStart(pref, server) {
+    if (pref === "allow" || pref === "deny") { return pref; }
+    return server === "deny" ? "deny" : "allow";
+  }
+  function cardReady(shownAt, nowMs) { return typeof shownAt === "number" && typeof nowMs === "number" && nowMs - shownAt >= CARD_GUARD_MS; }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function clock(epochS) { var t = new Date(epochS * 1000); return pad2(t.getHours()) + ":" + pad2(t.getMinutes()); }
+  function mmssOf(s) {
+    s = Math.max(0, Math.round(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s % 60);
+  }
+  function tableRows(text) {
+    var lines = String(text || "").replace(/\s+$/, "").split(/\r?\n/);
+    if (lines.length < 2) { return null; }
+    var rows = null;
+    if (lines.every(function (l) { return /^\s*\|.*\|\s*$/.test(l); })) {
+      rows = lines.filter(function (l) { return !/^\s*\|(\s*:?-{3,}:?\s*\|)+\s*$/.test(l); })
+        .map(function (l) { return l.trim().slice(1, -1).split("|").map(function (c) { return c.trim(); }); });
+    } else if (lines.every(function (l) { return l.indexOf("\t") >= 0; })) {
+      rows = lines.map(function (l) { return l.split("\t").map(function (c) { return c.trim(); }); });
+    }
+    if (!rows || rows.length < 2 || rows[0].length < 2) { return null; }
+    var n = rows[0].length;
+    return rows.every(function (r) { return r.length === n; }) ? rows : null;
+  }
+  function baseName(p) { p = String(p || "").replace(/[\\/]+$/, ""); var b = p.split(/[\\/]/).pop() || p; return b.length > 40 ? b.slice(0, 39) + "…" : b; }
+  function firstWord(cmd) {
+    var w = String(cmd || "").trim().split(/\s+/).filter(function (x) { return !/^[A-Za-z_][A-Za-z0-9_]*=/.test(x); })[0] || "";
+    w = w.split("/").pop();
+    return w.length > 24 ? w.slice(0, 23) + "…" : w;
+  }
+  function toolVerb(name, input) {
+    var i = input || {};
+    if (name === "Read") { return "Reading" + (i.file_path ? " " + baseName(i.file_path) : ""); }
+    if (name === "Edit" || name === "MultiEdit" || name === "Write" || name === "NotebookEdit") {
+      var f = i.file_path || i.notebook_path;
+      return "Editing" + (f ? " " + baseName(f) : "");
+    }
+    if (name === "Bash") { var w = firstWord(i.command); return "Running" + (w ? " " + w : " a command"); }
+    if (name === "Grep" || name === "Glob" || name === "LS") { return "Searching"; }
+    if (name === "WebFetch" || name === "WebSearch") { return "Searching the web"; }
+    if (name === "Agent" || name === "Task") { return "Running an agent"; }
+    if (name === "TodoWrite") { return "Planning"; }
+    return "Using " + String(name || "a tool").slice(0, 40);
+  }
+  function turnEvents(list) {
+    var at = -1;
+    (list || []).forEach(function (e, i) { if (e && e.kind === "user") { at = i; } });
+    return (list || []).slice(at + 1);
+  }
+  function activityOf(list, o) {
+    o = o || {};
+    if (o.starting) { return "Starting the session"; }
+    var ap = o.approvals || [];
+    if (ap.length) { return (ap[0] || {}).kind === "question" ? "Waiting for your answer" : "Waiting for your approval"; }
+    var evs = turnEvents(list), done = {}, last = null;
+    evs.forEach(function (e) { if (e.kind === "tool_result") { done[(e.data || {}).tool_use_id] = true; } });
+    for (var i = evs.length - 1; i >= 0; i--) {
+      var e = evs[i], d = e.data || {};
+      if (e.kind === "tool_use" && !done[d.tool_use_id]) { return toolVerb(d.name, d.input); }
+      if (!last && (e.kind === "assistant_text" || e.kind === "thinking" || e.kind === "tool_result")) { last = e; }
+    }
+    if (last && last.kind === "assistant_text" && (last.data || {}).partial) { return "Answering"; }
+    return "Thinking";
+  }
+  function secsWords(s) {
+    s = Math.max(0, Math.floor(s));
+    return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + pad2(s % 60) + "s";
+  }
+  var STILL_AFTER_S = 15;
+  function pctTone(p) { return p > 85 ? "alert" : p >= 60 ? "warn" : "calm"; }
+  function plural(n, w) { return n + " " + w + (n === 1 ? "" : "s"); }
+  function statChips(st) {
+    st = st || {};
+    var out = [];
+    if (typeof st.context_pct === "number") { out.push({ k: "context", t: "context " + st.context_pct + "%", tone: pctTone(st.context_pct) }); }
+    if (typeof st.cache_pct === "number") { out.push({ k: "cache", t: "cache " + st.cache_pct + "%", tone: "" }); }
+    if (typeof st.shells === "number" && st.shells > 0) { out.push({ k: "shells", t: plural(st.shells, "shell"), tone: "" }); }
+    var a = (st.agents || []).length;
+    if (a) { out.push({ k: "agents", t: plural(a, "agent"), tone: "" }); }
+    return out;
+  }
+  var MODE_ORDER = ["ask", "acceptEdits", "auto", "plan"], TIMED = { acceptEdits: true, auto: true };
+  var MODE_LABEL = { ask: "Ask", acceptEdits: "Accept edits", auto: "Auto", plan: "Plan" };
+  var MODE_LINE = {   // the server's lines (page data) win; these stand in before it answers
+    ask: "Every tool call waits for your Allow.",
+    acceptEdits: "File edits (Edit, Write) inside the project run without asking; reads, shell commands and everything else still ask.",
+    auto: "Reads, searches, file edits and the listed read-only commands (ls, cat, grep, git status ...) inside the project run without asking; other commands, web, subagents and anything outside the project still ask.",
+    plan: "Claude plans and changes nothing; it shows the plan for you to accept."
+  };
+  function modeLabel(m) { return MODE_LABEL[m] || "Ask"; }
+  function isTimed(m) { return TIMED[m] === true; }
+  function modeChip(ms, nowS) {
+    ms = ms || {};
+    var m = MODE_LABEL[ms.mode] ? ms.mode : "ask", out;
+    if (ms.until && m === "auto" && typeof ms.expires_at === "number") {
+      out = { k: m, t: "Auto until " + clock(ms.expires_at), tone: "warn" };
+    } else if (isTimed(m)) {
+      var left = typeof ms.expires_at === "number" ? ms.expires_at - nowS : null;
+      out = { k: m, t: modeLabel(m).toLowerCase() + ": " + (left === null ? "on" : mmssOf(left) + " left"), tone: "warn" };
+    } else if (m === "plan") {
+      out = { k: "plan", t: "plan: read-only planning", tone: "" };
+    } else {
+      out = { k: "ask", t: "ask: every call asks", tone: "" };
+    }
+    if (ms.pending && ms.pending !== m) { out.t += " (switching to " + modeLabel(ms.pending).toLowerCase() + "…)"; }
+    return out;
+  }
+  function modeRow(d) {
+    d = d || {};
+    var to = modeLabel(d.to), mins = typeof d.minutes === "number" ? d.minutes : null;
+    if (d.until) {
+      var at = typeof d.expires_at === "number" ? "Auto until " + clock(d.expires_at) : "Auto until";
+      return d.status === "requested" ? { who: "Mode", text: "Switching to " + at + "…", quiet: true } :
+             d.status === "applied" ? { who: "Mode", text: at + " on: " + MODE_LINE.auto.replace(/;.*$/, ";") + " anything else is refused without asking." +
+               (d.awake && typeof d.expires_at === "number" ? " Keeping this Mac awake until " + clock(d.expires_at) + "." : "") + (d.awake_note ? " " + plain(d.awake_note) + "." : "") } :
+             { who: "Mode", text: "Auto until ended (" + plain(d.reason) + "): back to " + modeLabel(d.to) + "." };
+    }
+    if (d.status === "requested") { return { who: "Mode", text: "Switching to " + to + (mins ? " for " + mins + " minutes" : "") + "…", quiet: true }; }
+    if (d.status === "applied") {
+      return { who: "Mode", text: isTimed(d.to) ? to + " on for " + (mins || "a few") + " minutes: " + MODE_LINE[d.to] :
+               to + ": " + MODE_LINE[d.to] };
+    }
+    if (d.status === "renewed") { return { who: "Mode", text: to + " kept on for " + (mins || "a few") + " more minutes." }; }
+    if (d.status === "expired") { return { who: "Mode", text: modeLabel(d.from) + " ended after " + (mins || "its") + " minutes: back to Ask. Every call asks again." }; }
+    if (d.status === "ended") { return { who: "Mode", text: modeLabel(d.from) + " ended" + (d.reason ? " (" + plain(d.reason) + ")" : "") + ": back to Ask." }; }
+    if (d.status === "refused") { return { who: "Mode", text: "Not switched to " + to + ": " + (plain(d.reason) || "the CLI refused it") + "." }; }
+    return { who: "Mode", text: to };
+  }
+  function modelWord(m) {
+    m = typeof m === "string" ? m : "";
+    if (!m) { return "model unknown"; }
+    var x = /^claude-([a-z]+)-([0-9]{1,2})(?:-([0-9]{1,2}))?(?:-[0-9]{8})?$/.exec(m);
+    return x ? x[1] + " " + x[2] + (x[3] ? "." + x[3] : "") : m.slice(0, 40);
+  }
+  var CON_STATES = { idle: "idle", running: "working", waiting_approval: "waiting for an approval", starting: "starting" };
+  var SID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+  function sessionLabel(sid, owners, selfTab) {
+    var own = (owners || []).filter(function (o) { return o.sid === sid && !o.viewing && o.tab !== selfTab; })[0];
+    return own ? own.label : "session " + String(sid || "").slice(0, 6);
+  }
+  function whenWord(iso, nowMs) {
+    var t = Date.parse(String(iso || ""));
+    if (isNaN(t)) { return ""; }
+    var d = new Date(t), n = new Date(typeof nowMs === "number" ? nowMs : t);
+    var day = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    var today = n.getFullYear() + "-" + pad2(n.getMonth() + 1) + "-" + pad2(n.getDate());
+    return (day === today ? "" : day + " ") + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+  function historyRows(list, owners, selfTab, presets, nowMs) {
+    var out = [];
+    (Array.isArray(list) ? list : []).slice(0, 30).forEach(function (r) {
+      if (!r || typeof r.session_id !== "string" || !SID_RE.test(r.session_id) || typeof r.state !== "string" || !r.state) { return; }
+      var pr = (presets || []).filter(function (p) { return p && p.id === r.preset; })[0];
+      var live = r.state !== "ended";
+      out.push({ sid: r.session_id, short: r.session_id.slice(0, 6), label: sessionLabel(r.session_id, owners, selfTab),
+                 prompt: typeof r.first_prompt === "string" ? r.first_prompt.replace(/\s+/g, " ").slice(0, 60) : "",
+                 started: whenWord(r.started, nowMs), ended: live ? "" : whenWord(r.ended, nowMs), live: live,
+                 state: r.state.slice(0, 32), stateWord: live ? (CON_STATES[r.state] || r.state.slice(0, 30)) : "ended",
+                 model: typeof r.model === "string" && r.model ? modelWord(r.model) : "model not reported",
+                 preset: pr ? pr.label : (r.preset || "preset not recorded"), presetId: pr ? pr.id : "" });
+    });
+    return out;
+  }
+  function openApprovals(list, nowS, cancelled) {
+    var done = {};
+    Object.keys(cancelled || {}).forEach(function (k) { done[k] = true; });
+    list.forEach(function (e) { if (e.kind === "approval_decision") { done[(e.data || {}).request_id] = true; } });
+    return list.filter(function (e) {
+      var d = e.data || {};
+      return e.kind === "approval_request" && !done[d.request_id] && !(typeof d.expires_at === "number" && d.expires_at <= nowS);
+    });
+  }
+  return { LEVELS: LEVELS, plainLevel: plainLevel, LEVEL_SHOWS: LEVEL_SHOWS, CAT_TOGGLE: CAT_TOGGLE, viewFor: viewFor, narration: narration, STAMP_LINE: STAMP_LINE, stripStamp: stripStamp, plainMarks: plainMarks, visible: visible, mkey: mkey, MIN_SUMMARY_MAX: MIN_SUMMARY_MAX, minimalAnswer: minimalAnswer, plainAsk: plainAsk, PLAIN_NAME: PLAIN_NAME, projectFor: projectFor, simpleActivity: simpleActivity, LIMIT_WORDS: LIMIT_WORDS, FIGURES: FIGURES, plain: plain, describe: describe, simpleWords: simpleWords, stripTool: stripTool, approvalLabel: approvalLabel, SUMMARY_KEYS: SUMMARY_KEYS, approvalFull: approvalFull, approvalMore: approvalMore, CARD_GUARD_MS: CARD_GUARD_MS, cardStart: cardStart, cardReady: cardReady, pad2: pad2, clock: clock, mmssOf: mmssOf, tableRows: tableRows, baseName: baseName, firstWord: firstWord, toolVerb: toolVerb, turnEvents: turnEvents, activityOf: activityOf, secsWords: secsWords, STILL_AFTER_S: STILL_AFTER_S, pctTone: pctTone, plural: plural, statChips: statChips, MODE_ORDER: MODE_ORDER, MODE_LABEL: MODE_LABEL, MODE_LINE: MODE_LINE, modeLabel: modeLabel, isTimed: isTimed, modeChip: modeChip, modeRow: modeRow, modelWord: modelWord, CON_STATES: CON_STATES, SID_RE: SID_RE, sessionLabel: sessionLabel, whenWord: whenWord, historyRows: historyRows, openApprovals: openApprovals, TIMED: TIMED };
+})();
+/* gtcon-copy:end */
+
+/* gt-phone-pure:begin -- no DOM in here: tests/test_gt_phone_page.py runs this block in node */
+var PHONE = (function () {
+  var MAX_PROMPT = 8000;                       // gt_phone_relay.MAX_PROMPT
+  // Settings kept in this phone only (localStorage, one versioned record; anything invalid falls back to its default).
+  var PREFS_VERSION = 1;
+  var PREF_ENUMS = { theme: ["auto", "light", "dark", "contrast"], density: ["comfortable", "compact"],
+                     level: ["mac", "minimal", "simple", "answers", "steps", "everything"], card: ["mac", "allow", "deny"],
+                     poll: ["auto", "3", "5", "10", "30"], suggTap: ["fill", "send"], motion: ["auto", "reduce"] };
+  var PREF_BOOLS = ["plain", "activity", "modelChip", "ctxChip", "stamps", "phoneTag", "ended", "sugg", "enterSends",
+                    "autoscroll", "haptics", "sound", "awake", "confirmStop"];
+  var SIZES = [14, 15, 16, 17, 18, 20, 22];
+  function prefsDefaults() {
+    return { v: PREFS_VERSION, theme: "auto", size: 17, density: "comfortable", level: "mac", card: "mac", poll: "auto",
+             suggTap: "fill", motion: "auto", plain: true, activity: true, modelChip: true, ctxChip: true, stamps: false,
+             phoneTag: true, ended: true, sugg: true, enterSends: false, autoscroll: true, haptics: true, sound: false,
+             awake: false, confirmStop: true };
+  }
+  function cleanPrefs(raw) {
+    var d = prefsDefaults();
+    if (!raw || typeof raw !== "object" || raw.v !== PREFS_VERSION) { return d; }
+    Object.keys(PREF_ENUMS).forEach(function (k) { if (PREF_ENUMS[k].indexOf(raw[k]) >= 0) { d[k] = raw[k]; } });
+    PREF_BOOLS.forEach(function (k) { if (typeof raw[k] === "boolean") { d[k] = raw[k]; } });
+    if (SIZES.indexOf(raw.size) >= 0) { d.size = raw.size; }
+    return d;
+  }
+  // The view level in effect: this phone's choice, or the Mac's ui_session_view ("mac").
+  function levelOf(prefs, settings) {
+    var lv = prefs && prefs.level !== "mac" ? prefs.level : settings && settings.view;
+    return GTCON.LEVELS.indexOf(lv) >= 0 ? lv : "minimal";
+  }
+  // How long until the next read of the feed (ms). Fast while a turn runs or a card waits, slower when nothing
+  // changed for two minutes, slow in the background; never sooner than GitHub's rate limit allows.
+  function pollMs(o) {
+    o = o || {};
+    var ms;
+    if (o.hidden) { ms = 60000; }
+    else if (o.pref && o.pref !== "auto") { ms = Number(o.pref) * 1000; }
+    else if (o.busy || o.card) { ms = 3000; }
+    else if ((o.quietMs || 0) < 120000) { ms = 5000; }
+    else { ms = 15000; }
+    return Math.max(ms, o.rateWaitMs || 0);
+  }
+  // GitHub's answer -> how long to hold off (ms): until the reset on a 403/429 that says so, gently when few
+  // requests are left this hour, 0 otherwise.
+  function rateWait(status, h, nowMs) {
+    h = h || {};
+    var left = Number(h.remaining), reset = Number(h.reset) * 1000, after = Number(h.retryAfter) * 1000;
+    if (status === 429 || (status === 403 && (left === 0 || after > 0))) {
+      if (after > 0) { return Math.max(after, 1000); }
+      if (reset > nowMs) { return Math.min(reset - nowMs + 1000, 3600000); }
+      return 60000;
+    }
+    if (h.remaining !== null && h.remaining !== undefined && h.remaining !== "" && left < 100) { return 30000; }
+    return 0;
+  }
+  // "12 s ago", "3 min ago", "2 h ago"
+  function ago(sec) {
+    if (typeof sec !== "number" || !isFinite(sec)) { return "never"; }
+    sec = Math.max(0, Math.floor(sec));
+    return sec < 90 ? sec + " s ago" : sec < 5400 ? Math.round(sec / 60) + " min ago" : Math.round(sec / 3600) + " h ago";
+  }
+  // The feed's shape, checked before anything renders (it is the Mac's, sealed, but checked all the same).
+  function feedOk(st) {
+    return !!st && typeof st === "object" && (st.v === 1 || st.v === 2) && typeof st.at === "number" &&
+      Array.isArray(st.events || []) && Array.isArray(st.pending || []) && Array.isArray(st.acks || []);
+  }
+  // A link's address, or null: https, http and mailto only (never javascript:, data: or anything else).
+  function safeHref(url) {
+    var u = String(url || "").trim();
+    if (!/^(https?:\/\/|mailto:)[^\s<>"'`]+$/i.test(u) || u.length > 2000) { return null; }
+    return u;
+  }
+  // Markdown, as tokens (no HTML is ever produced: the page builds DOM nodes from these, text as text).
+  function inline(s, depth) {
+    s = String(s || "");
+    depth = depth || 0;
+    var out = [], buf = "", i = 0, m;
+    function flush() { if (buf) { out.push({ t: "text", v: buf }); buf = ""; } }
+    while (i < s.length) {
+      var c = s.charAt(i), rest = s.slice(i);
+      if (c === "`" && (m = /^`([^`\n]+)`/.exec(rest))) { flush(); out.push({ t: "code", v: m[1] }); i += m[0].length; continue; }
+      if (c === "[" && (m = /^\[([^\]\n]{1,300})\]\(([^)\s]{1,2000})\)/.exec(rest))) {
+        var href = safeHref(m[2]);
+        flush();
+        out.push(href ? { t: "a", href: href, c: depth < 3 ? inline(m[1], depth + 1) : [{ t: "text", v: m[1] }] } : { t: "text", v: m[1] });
+        i += m[0].length; continue;
+      }
+      if (depth < 3 && (c === "*" || c === "_") && (m = /^(\*\*|__)(?=\S)([\s\S]*?\S)\1/.exec(rest))) {
+        flush(); out.push({ t: "b", c: inline(m[2], depth + 1) }); i += m[0].length; continue;
+      }
+      if (depth < 3 && c === "*" && (m = /^\*(?=[^\s*])([^*\n]*?[^\s*])\*(?!\*)/.exec(rest))) {
+        flush(); out.push({ t: "i", c: inline(m[1], depth + 1) }); i += m[0].length; continue;
+      }
+      if ((c === "h" || c === "H") && (i === 0 || /[\s(]/.test(s.charAt(i - 1))) && (m = /^https?:\/\/[^\s<>()"'`]+/i.exec(rest))) {
+        var url = m[0].replace(/[.,;:!?]+$/, ""), h2 = safeHref(url);
+        if (h2) { flush(); out.push({ t: "a", href: h2, c: [{ t: "text", v: url }] }); i += url.length; continue; }
+      }
+      buf += c; i += 1;
+    }
+    flush();
+    return out;
+  }
+  var LIST = /^\s{0,3}([-*+]|\d{1,3}[.)])\s+(.*)$/;
+  function blocks(text) {
+    var lines = String(text || "").replace(/\r\n?/g, "\n").split("\n"), out = [], i = 0, m;
+    while (i < lines.length) {
+      var l = lines[i];
+      if ((m = /^\s{0,3}(```|~~~)\s*([A-Za-z0-9_+.#-]{0,30})\s*$/.exec(l))) {
+        var fence = m[1], body = [], closed = false;
+        i += 1;
+        while (i < lines.length) {
+          if (lines[i].trim() === fence) { closed = true; i += 1; break; }
+          body.push(lines[i]); i += 1;
+        }
+        out.push({ t: "code", lang: m[2] || "", text: body.join("\n"), open: !closed });
+        continue;
+      }
+      if (!l.trim()) { i += 1; continue; }
+      if ((m = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l))) { out.push({ t: "h", level: m[1].length, c: inline(m[2]) }); i += 1; continue; }
+      if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(l)) { out.push({ t: "hr" }); i += 1; continue; }
+      if (/^\s*\|.*\|\s*$/.test(l)) {
+        var tl = [];
+        while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) { tl.push(lines[i]); i += 1; }
+        var rows = GTCON.tableRows(tl.join("\n"));
+        if (rows) { out.push({ t: "table", rows: rows.map(function (r) { return r.map(function (x) { return inline(x); }); }) }); }
+        else { out.push({ t: "p", c: inline(tl.join("\n")) }); }
+        continue;
+      }
+      if (/^\s{0,3}>/.test(l)) {
+        var q = [];
+        while (i < lines.length && /^\s{0,3}>/.test(lines[i])) { q.push(lines[i].replace(/^\s{0,3}>\s?/, "")); i += 1; }
+        out.push({ t: "quote", c: inline(q.join("\n")) });
+        continue;
+      }
+      if ((m = LIST.exec(l))) {
+        var ordered = /\d/.test(m[1]), items = [];
+        while (i < lines.length && lines[i].trim()) {
+          var lm = LIST.exec(lines[i]);
+          if (lm && /\d/.test(lm[1]) === ordered) { items.push(lm[2]); }
+          else if (lm || !items.length) { break; }
+          else { items[items.length - 1] += "\n" + lines[i].trim(); }
+          i += 1;
+        }
+        out.push({ t: ordered ? "ol" : "ul", items: items.map(function (x) { return inline(x); }) });
+        continue;
+      }
+      var p = [];
+      while (i < lines.length && lines[i].trim() && !/^\s{0,3}(```|~~~|#{1,6}\s|>)/.test(lines[i]) && !LIST.test(lines[i]) &&
+             !/^\s*\|.*\|\s*$/.test(lines[i])) { p.push(lines[i]); i += 1; }
+      if (!p.length) { p.push(lines[i]); i += 1; }
+      out.push({ t: "p", c: inline(p.join("\n")) });
+    }
+    return out;
+  }
+  // The transcript rows for a list of console events at a view level: the console's own filter (visible,
+  // narration, plainMarks) and words (describe, simpleWords, minimalAnswer). -> [{key, kind, who, text, md,
+  // source, ts, cls, minimal, partial}]
+  function rows(list, view, o) {
+    o = o || {};
+    list = (list || []).filter(function (e) { return e && typeof e === "object" && typeof e.seq === "number"; });
+    var narr = GTCON.narration(list), marks = GTCON.plainMarks(list, !!o.open), plainLv = GTCON.plainLevel(view.level), out = [];
+    list.forEach(function (e) {
+      if (!GTCON.visible(e, view, narr, marks)) { return; }
+      var d = e.data || {}, key = GTCON.mkey(e) || "s" + e.seq, r = { key: key, kind: e.kind, ts: typeof e.ts === "string" ? e.ts : "" };
+      if (e.kind === "user") {
+        r.who = "You"; r.text = String(d.text || ""); r.source = d.source === "phone" ? "phone" : "";
+      } else if (e.kind === "assistant_text") {
+        var t = String(d.text || "");
+        if (view.show && view.show.stamps === false) { t = GTCON.stripStamp(t); }
+        r.who = "Claude"; r.text = t; r.md = true; r.partial = !!d.partial;
+        if (view.level === "minimal" && !d.partial) { r.minimal = GTCON.minimalAnswer(t); }
+      } else {
+        var w = (plainLv && GTCON.simpleWords(e)) || GTCON.describe(e);
+        if (!w) { return; }
+        r.who = w.who; r.text = String(w.text || "");
+        r.cls = e.kind === "error" ? "error" : (e.kind === "approval_decision" && d.decision === "deny") ? "deny" : "";
+        if (r.text === "NOT_LOGGED_IN") { r.text = "Claude is not logged in on the Mac."; }
+      }
+      out.push(r);
+    });
+    return out;
+  }
+  // The activity line while a turn runs: the console's words ("Reading notes.md…", "Waiting for your approval"),
+  // in plain words at Minimal and Simple, with the time since the prompt. "" when nothing runs.
+  function activity(st, view, nowMs) {
+    var s = (st && st.session) || {};
+    if (!s.id || s.state === "idle" || s.state === "ended" || s.state === "unknown") { return ""; }
+    var list = st.events || [], pend = st.pending || [], lastUser = null;
+    list.forEach(function (e) { if (e && e.kind === "user") { lastUser = e; } });
+    var verb = pend.length ? GTCON.activityOf(list, { approvals: pend }) :
+      GTCON.plainLevel(view.level) ? GTCON.simpleActivity(lastUser && (lastUser.data || {}).text, st.projects || [],
+                                                         view.level === "minimal" ? "Opening" : "Loading") :
+      GTCON.activityOf(list, {});
+    var t = lastUser && Date.parse(lastUser.ts || "");
+    return verb + "…" + (t && !isNaN(t) ? " (" + GTCON.secsWords((nowMs - t) / 1000) + ")" : "");
+  }
+  // An approval card as the phone shows it: plain words or the console's label, its details, what it may do.
+  function card(c, prefs, settings, level) {
+    c = c || {};
+    var plainW = prefs.plain || GTCON.plainLevel(level);
+    var d = { kind: c.kind, tool: c.tool, summary: c.summary, input: c.input, agent_id: c.agent_id };
+    return { title: c.kind === "question" ? "Claude asks you a question" : c.kind === "plan" ? "Claude has a plan for you to approve" :
+               plainW ? "Claude wants to: " + GTCON.plainAsk(d) : "Allow " + (c.tool || "this tool") + "?",
+             detail: GTCON.approvalFull(d), label: GTCON.approvalLabel(d), allow: c.phone_may_approve === true,
+             why: c.phone_may_approve === true ? "" : String(c.why || "answered at the Mac"),
+             primary: c.phone_may_approve === true ? GTCON.cardStart(prefs.card === "mac" ? "auto" : prefs.card, settings && settings.card_default) : "deny" };
+  }
+  // The chips under the title: model, mode, context (and the weekly reading when the Mac has one). Never a figure.
+  function chips(st, prefs, nowS) {
+    var s = (st && st.session) || null, out = [];
+    if (!s) { return out; }
+    if (prefs.modelChip) { out.push({ k: "model", t: GTCON.modelWord(s.model), tone: "" }); }
+    var mc = GTCON.modeChip(s.mode_state || { mode: s.mode }, nowS);
+    out.push({ k: "mode", t: mc.t, tone: mc.tone });
+    if (prefs.ctxChip) {
+      GTCON.statChips(s.stats || {}).forEach(function (c) { if (c.k === "context") { out.push(c); } });
+      var u = st.usage || {};
+      if (u.available && typeof u.weekly_pct === "number") { out.push({ k: "weekly", t: "weekly " + u.weekly_pct + "%", tone: GTCON.pctTone(u.weekly_pct) === "calm" ? "" : GTCON.pctTone(u.weekly_pct) }); }
+    }
+    return out;
+  }
+  // The session list: the console's history rows, the live (promptable) one first. ended: show ended ones.
+  function sessions(st, ended, nowMs) {
+    var list = (st && st.sessions) || [], live = {};
+    list.forEach(function (r) { if (r && r.live) { live[r.session_id] = true; } });
+    var rs = GTCON.historyRows(list, [], "", [], nowMs).map(function (r) { r.promptable = !!live[r.sid]; return r; });
+    rs = rs.filter(function (r) { return ended || r.live; });
+    rs.sort(function (a, b) { return (b.promptable ? 1 : 0) - (a.promptable ? 1 : 0); });
+    return rs;
+  }
+  // Why the prompt box is closed, or "" when the phone may send a prompt now.
+  function composerWhy(st, viewing) {
+    var s = st && st.session;
+    if (viewing) { return "Read only: go back to the live session to type."; }
+    if (!st) { return "Waiting for the Mac…"; }
+    if (!s) { return "No live session: start one at the Mac."; }
+    if (!s.phone_prompts) { return "Prompts from the phone run in Ask mode only" + (s.why ? " (" + s.why + ")" : "") + "."; }
+    if (st.prompts_left === 0) { return "This phone sent its prompts for this hour; try later."; }
+    return "";
+  }
+  // What the phone may send as a prompt: the Mac checks again; this says early what it would refuse.
+  function promptCheck(text) {
+    var t = String(text || "");
+    if (!t.trim()) { return "nothing to send"; }
+    if (t.length > MAX_PROMPT) { return "a prompt from the phone is at most " + MAX_PROMPT + " characters (this one is " + t.length + ")"; }
+    if (/^\s*\//.test(t)) { return "slash commands run at the Mac only"; }
+    if (/[\x00-\x08\x0b-\x1f\x7f]/.test(t)) { return "a prompt may not hold control characters"; }
+    return null;
+  }
+  // A request's answer from the Mac, in words.
+  var SENT_WORDS = { prompt: "Prompt", approve: "Allow once", deny: "Deny", stop: "Stop", interrupt: "Interrupt", view: "Session view",
+                     setting: "Mac setting" };
+  // The two Mac settings this phone may change (gt_phone_relay.PHONE_SETTABLE) and their only values; the Mac
+  // checks the same list again and refuses anything else. Every other Mac setting is changed at the Mac.
+  var MAC_SETTABLE = { ui_card_default: { allow: "Allow once", deny: "Deny" },
+                       ui_session_view: { minimal: "Minimal", simple: "Simple", answers: "Answers", steps: "Steps", everything: "Everything" } };
+  // -> null when the phone may ask for key = value, else why not (the feed must also list the key).
+  function macSettingWhy(key, value, settings) {
+    var mayList = (settings && settings.phone_may_change) || [];
+    if (!Object.prototype.hasOwnProperty.call(MAC_SETTABLE, key) || mayList.indexOf(key) < 0) { return "change it at the Mac"; }
+    if (!Object.prototype.hasOwnProperty.call(MAC_SETTABLE[key], value)) { return "not a value this setting takes"; }
+    return null;
+  }
+  // The Mac's current value of a phone-settable key, from the feed.
+  function macSettingNow(key, settings) {
+    settings = settings || {};
+    if (key === "ui_card_default") { return settings.card_default === "deny" ? "deny" : "allow"; }
+    if (key === "ui_session_view") { return GTCON.LEVELS.indexOf(settings.view) >= 0 ? settings.view : "minimal"; }
+    return null;
+  }
+  function ackWords(type, ack) {
+    return (SENT_WORDS[type] || type) + (ack.ok ? ": done" : ": refused, " + String(ack.message || ""));
+  }
+  function auditWords(a, nowS) {
+    if (!a || !a.day) { return "no audit lines yet"; }
+    var w = a.day.done + " done, " + a.day.refused + " refused, " + a.day.unreadable + " unreadable today";
+    if (a.last_refused) { w += "; last refusal: " + a.last_refused.type + " (" + a.last_refused.code + "), " + ago(nowS - a.last_refused.at); }
+    return w;
+  }
+  return { MAX_PROMPT: MAX_PROMPT, PREFS_VERSION: PREFS_VERSION, PREF_ENUMS: PREF_ENUMS, PREF_BOOLS: PREF_BOOLS, SIZES: SIZES,
+           prefsDefaults: prefsDefaults, cleanPrefs: cleanPrefs, levelOf: levelOf, pollMs: pollMs, rateWait: rateWait, ago: ago,
+           feedOk: feedOk, safeHref: safeHref, inline: inline, blocks: blocks, rows: rows, activity: activity, card: card,
+           chips: chips, sessions: sessions, composerWhy: composerWhy, promptCheck: promptCheck, ackWords: ackWords,
+           auditWords: auditWords, MAC_SETTABLE: MAC_SETTABLE, macSettingWhy: macSettingWhy, macSettingNow: macSettingNow };
+})();
+/* gt-phone-pure:end */
+
+const REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/;
+const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._\/-]{0,62}$/;
+// The repository, branch and API base come from the pairing link (its fragment); this page holds none of them.
+const API_DEFAULT = "https://api.github.com";
+const API_RE = /^https:\/\/[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(\/[A-Za-z0-9._~-]+)*$/;
+const OUT = "phone/out/state.json";
+const VIEW_PATH_RE = /^phone\/out\/view-[0-9a-f]{16}\.json$/;
+const HELLO_MS = 120000, ACK_WAIT_MS = 90000;
+const $ = id => document.getElementById(id);
+const store = {
+  get(k) { try { return localStorage.getItem("gt-phone." + k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem("gt-phone." + k, v); } catch (e) { /* private window or full */ } },
+  del(k) { try { localStorage.removeItem("gt-phone." + k); } catch (e) { /* nothing to remove */ } },
+  clear() { try { Object.keys(localStorage).filter(k => k.startsWith("gt-phone.")).forEach(k => localStorage.removeItem(k)); } catch (e) {} }
+};
+function idb(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open("gt-phone", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("keys");
+    r.onerror = () => reject(r.error);
+    r.onsuccess = () => {
+      const tx = r.result.transaction("keys", mode), st = tx.objectStore("keys");
+      const q = fn(st);
+      tx.oncomplete = () => resolve(q && q.result);
+      tx.onerror = () => reject(tx.error);
+    };
+  });
+}
+let K = null, P = null, cfg = null, last = null, viewing = null, viewDoc = null, prefs = PHONE.prefsDefaults();
+let sent = {}, outbox = [], etag = "", rate = { left: null, waitUntil: 0 }, timer = null, lastHello = 0, lastChange = Date.now();
+let rowsSeen = {}, ansOpen = {}, cardsShown = {}, cardLocked = {}, wake = null, turnWas = "", sheetOpen = "";
+let reveal = {}, revealTimer = null;
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = String(text);
+  return e;
+}
+function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+function say(id, text) { $(id).textContent = text || ""; }
+function announce(text) { say("announce", ""); setTimeout(() => say("announce", text), 50); }
+
+// ---- settings kept in this phone
+function loadPrefs() {
+  let raw = null;
+  try { raw = JSON.parse(store.get("prefs") || "null"); } catch (e) { raw = null; }
+  prefs = PHONE.cleanPrefs(raw);
+}
+function savePrefs() { store.set("prefs", JSON.stringify(prefs)); }
+function applyPrefs() {
+  const root = document.documentElement;
+  root.setAttribute("data-theme", prefs.theme);
+  root.setAttribute("data-density", prefs.density);
+  root.setAttribute("data-motion", prefs.motion);
+  root.style.setProperty("--fs", prefs.size + "px");
+}
+
+// ---- GitHub (the token stays in this browser; requests omit credentials and referrer)
+function rateHeaders(r) {
+  const g = k => (r.headers && r.headers.get) ? r.headers.get(k) : null;
+  return { remaining: g("x-ratelimit-remaining"), reset: g("x-ratelimit-reset"), retryAfter: g("retry-after") };
+}
+async function gh(method, path, body, extra) {
+  const token = store.get("token");
+  if (!token) throw new Error("no GitHub token on this phone (Settings, Change token)");
+  if (Date.now() < rate.waitUntil) throw new Error("GitHub asked us to wait; trying again " + PHONE.ago((Date.now() - rate.waitUntil) / -1000).replace(" ago", "") + " from now");
+  const url = (cfg.api || API_DEFAULT) + "/repos/" + cfg.repo + "/contents/" + path +
+              (method === "GET" ? "?ref=" + encodeURIComponent(cfg.branch) : "");
+  const headers = { "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28" };
+  if (extra && extra.etag) headers["If-None-Match"] = extra.etag;
+  const r = await fetch(url, { method: method, cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
+                               headers: headers, body: body ? JSON.stringify(body) : undefined });
+  const h = rateHeaders(r);
+  if (h.remaining !== null && h.remaining !== undefined) rate.left = Number(h.remaining);
+  const wait = PHONE.rateWait(r.status, h, Date.now());
+  if (wait && (r.status === 403 || r.status === 429)) rate.waitUntil = Date.now() + wait;
+  if (r.status === 304) return { notModified: true };
+  if (method === "GET" && r.status === 404) return null;
+  if (!r.ok) throw new Error("GitHub answered " + r.status);
+  const out = await r.json();
+  if (out && typeof out === "object" && r.headers && r.headers.get) out.__etag = r.headers.get("etag") || "";
+  return out;
+}
+function stdB64(bytes) { let s = ""; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s); }
+function fromContents(r) { return unb64u(String(r.content || "").replace(/\s/g, "").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")); }
+async function putFile(path, bytes) { return gh("PUT", path, { message: "gt phone", content: stdB64(bytes), branch: cfg.branch }); }
+
+// ---- pairing (as built: the link's fragment, then the six digits typed at the Mac)
+async function startPairing(frag) {
+  let p;
+  try { p = JSON.parse(dec.decode(unb64u(frag))); } catch (e) { p = null; }
+  history.replaceState(null, "", location.pathname);           // the secret leaves the address bar at once
+  if (!p || p.v !== 1 || !REPO_RE.test(p.r || "") || !BRANCH_RE.test(p.b || "") || !/^[0-9a-f]{16}$/.test(p.p || "") ||
+      (p.a !== undefined && !API_RE.test(p.a))) {
+    show("unpaired"); say("unpaired-why", "That pairing link is not one this page can read."); return;
+  }
+  show("pairing");
+  say("pair-repo", "Repository " + p.r + ", branch " + p.b + (p.a ? ", API " + p.a : ""));
+  $("pair-go").onclick = async () => {
+    $("pair-go").disabled = true;
+    try {
+      const name = ($("pair-name").value || "phone").replace(/[^A-Za-z0-9 ._-]/g, "").slice(0, 32) || "phone";
+      const token = $("pair-token").value.trim();
+      if (token) store.set("token", token);
+      $("pair-token").value = "";
+      const rawK = unb64u(p.k);
+      const aes = await crypto.subtle.importKey("raw", rawK, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+      const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
+      cfg = { repo: p.r, branch: p.b, pair: p.p, name: name };
+      if (p.a) cfg.api = p.a;
+      const req = await makePairRequest(aes, kp, p.p, name, Date.now());
+      await putFile(req.path, req.bytes);
+      const code = await confirmCode(rawK, p.p, req.pub);
+      rawK.fill(0);
+      await idb("readwrite", st => { st.put(aes, "K"); st.put(kp.privateKey, "P"); });
+      store.set("cfg", JSON.stringify(cfg));
+      say("pair-code", code.slice(0, 3) + " " + code.slice(3));
+      $("pair-code-box").hidden = false;
+      say("pair-msg", "Sent. Type the code at the Mac, then reload this page.");
+    } catch (e) {
+      say("pair-msg", "Pairing failed: " + e.message);
+      $("pair-go").disabled = false;
+    }
+  };
+}
+function show(which) { ["pairing", "unpaired", "app"].forEach(s => { $(s).hidden = s !== which; }); }
+
+// ---- requests to the Mac (sealed with K, signed with this phone's key)
+async function send(type, fields, extra) {
+  const r = await makeRequest(K, P, cfg.pair, type, fields, Date.now());
+  await putFile(r.path, r.bytes);
+  if (type !== "hello") sent[r.id] = Object.assign({ type: type, at: Date.now() }, extra || {});
+  lastChange = Date.now();
+  return r.id;
+}
+async function act(type, fields, btn, extra) {
+  if (btn) btn.disabled = true;
+  try {
+    const id = await send(type, fields, extra);
+    if (type !== "hello") { if (type !== "prompt") say("note", PHONE.ackWords(type, { ok: true }).replace(": done", ": sent, waiting for the Mac")); kick(1500); }
+    return id;
+  }
+  catch (e) { say("note", e.message); if (btn) btn.disabled = false; return null; }
+}
+function hello(force) {
+  if (!force && Date.now() - lastHello < HELLO_MS) return;
+  lastHello = Date.now();
+  act("hello", {}, null);
+}
+
+// ---- reading the feed
+async function poll() {
+  try {
+    const r = await gh("GET", OUT, null, { etag: etag });
+    if (r && r.notModified) { renderConn(); renderActivity(); return; }
+    if (!r || !r.content) { last = null; renderAll(); return; }
+    const raw = fromContents(r);
+    const st = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, OUT, raw)));
+    if (!PHONE.feedOk(st)) throw new Error("the Mac's feed has a shape this page does not know");
+    etag = r.__etag || "";
+    store.set("sealed", dec.decode(raw));
+    if (!last || last.at !== st.at) lastChange = Date.now();
+    last = st;
+    if (viewing) await loadView();
+    renderAll();
+  } catch (e) {
+    renderConn(e.message);
+  }
+}
+async function loadView() {
+  const v = last && last.views && last.views[viewing];
+  if (!v || !VIEW_PATH_RE.test(v.path || "") || v.path !== "phone/out/view-" + viewing + ".json") return;
+  if (viewDoc && viewDoc.sid === viewing && viewDoc.at >= v.at) return;
+  const r = await gh("GET", v.path);
+  if (!r || !r.content) return;
+  const doc = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, v.path, fromContents(r))));
+  if (doc && Array.isArray(doc.events)) viewDoc = { sid: viewing, at: v.at, doc: doc };
+}
+function kick(ms) { clearTimeout(timer); timer = setTimeout(tick, ms || 0); }
+async function tick() {
+  clearTimeout(timer);
+  if (!document.hidden) { await poll(); hello(false); }
+  const s = last && last.session;
+  timer = setTimeout(tick, PHONE.pollMs({ hidden: document.hidden, pref: prefs.poll, busy: s && s.state !== "idle" && s.state !== "ended",
+                                          card: !!(last && last.pending && last.pending.length), quietMs: Date.now() - lastChange,
+                                          rateWaitMs: Math.max(0, rate.waitUntil - Date.now()) }));
+}
+
+// ---- rendering
+function renderInline(parent, toks) {
+  (toks || []).forEach(t => {
+    if (t.t === "text") parent.appendChild(document.createTextNode(t.v));
+    else if (t.t === "code") parent.appendChild(el("code", null, t.v));
+    else if (t.t === "b" || t.t === "i") { const n = el(t.t === "b" ? "strong" : "em"); renderInline(n, t.c); parent.appendChild(n); }
+    else if (t.t === "a") {
+      const href = PHONE.safeHref(t.href);
+      if (!href) { renderInline(parent, t.c); return; }
+      const a = el("a"); a.setAttribute("href", href); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer");
+      renderInline(a, t.c); parent.appendChild(a);
+    }
+  });
+}
+function codeBox(b) {
+  const box = el("div", "codebox"), bar = el("div", "bar"), pre = el("pre"), code = el("code", null, b.text);
+  bar.appendChild(el("span", null, b.lang || "code"));
+  const copy = el("button", "link", "Copy"); copy.type = "button"; copy.setAttribute("aria-label", "Copy this code");
+  copy.onclick = () => {
+    const done = ok => { copy.textContent = ok ? "Copied" : "Copy failed"; setTimeout(() => { copy.textContent = "Copy"; }, 1500); };
+    try { navigator.clipboard.writeText(b.text).then(() => done(true), () => done(false)); } catch (e) { done(false); }
+  };
+  bar.appendChild(copy); pre.appendChild(code); box.appendChild(bar); box.appendChild(pre);
+  return box;
+}
+function renderMarkdown(parent, text) {
+  PHONE.blocks(text).forEach(b => {
+    if (b.t === "code") parent.appendChild(codeBox(b));
+    else if (b.t === "h") { const h = el("h" + Math.min(6, Math.max(1, b.level))); renderInline(h, b.c); parent.appendChild(h); }
+    else if (b.t === "hr") parent.appendChild(el("hr"));
+    else if (b.t === "quote") { const q = el("blockquote"); renderInline(q, b.c); parent.appendChild(q); }
+    else if (b.t === "ul" || b.t === "ol") { const l = el(b.t); b.items.forEach(it => { const li = el("li"); renderInline(li, it); l.appendChild(li); }); parent.appendChild(l); }
+    else if (b.t === "table") {
+      const t = el("table");
+      b.rows.forEach((r, i) => { const tr = el("tr"); r.forEach(c => { const td = el(i ? "td" : "th"); renderInline(td, c); tr.appendChild(td); }); t.appendChild(tr); });
+      parent.appendChild(t);
+    } else { const p = el("p"); renderInline(p, b.c); parent.appendChild(p); }
+  });
+}
+function stampOf(ts) { const t = Date.parse(ts || ""); return isNaN(t) ? "" : GTCON.whenWord(ts, Date.now()); }
+function rowNode(r) {
+  if (r.kind === "user") {
+    const n = el("div", "row user"), b = el("div", "bubble", r.text);
+    n.appendChild(b);
+    const bits = [];
+    if (r.source === "phone" && prefs.phoneTag) bits.push("from the phone");
+    if (prefs.stamps && stampOf(r.ts)) bits.push(stampOf(r.ts));
+    if (bits.length) n.appendChild(el("div", "tag", bits.join(" · ")));
+    return n;
+  }
+  if (r.kind === "assistant_text") {
+    const n = el("div", "row claude"), md = el("div", "md" + (r.partial ? " streaming" : ""));
+    n.setAttribute("aria-label", "Claude");
+    if (r.minimal && !ansOpen[r.key] && !(r.minimal.whole)) {
+      const p = el("p", null, r.minimal.text || "(an answer with no words to show)"); md.appendChild(p);
+      const more = el("button", "link more", "Show full answer"); more.type = "button";
+      more.onclick = () => { ansOpen[r.key] = true; renderAll(); };
+      n.appendChild(md); n.appendChild(more);
+    } else {
+      renderMarkdown(md, r.text);
+      n.appendChild(md);
+      if (r.minimal && ansOpen[r.key]) { const less = el("button", "link more", "Show less"); less.type = "button"; less.onclick = () => { ansOpen[r.key] = false; renderAll(); }; n.appendChild(less); }
+    }
+    if (prefs.stamps && stampOf(r.ts)) n.appendChild(el("div", "stamp", stampOf(r.ts)));
+    return n;
+  }
+  const n = el("div", "row meta" + (r.cls ? " " + r.cls : ""));
+  n.appendChild(el("span", "who", r.who));
+  n.appendChild(document.createTextNode(r.text));
+  return n;
+}
+// The feed arrives in coalesced writes, so an answer grows in chunks: new text is revealed over about half a second
+// (the look of streaming), never when motion is reduced and never for text seen at first sight (history).
+function reduced() {
+  const mq = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  return prefs.motion === "reduce" || !!(mq && mq.matches);
+}
+function revealed(r) {
+  if (r.kind !== "assistant_text" || r.minimal) return r;
+  const cur = reveal[r.key];
+  if (!cur || reduced() || r.text.length <= cur.at) { reveal[r.key] = { at: r.text.length }; return r; }
+  if (cur.to !== r.text.length) { cur.to = r.text.length; cur.step = Math.max(24, Math.ceil((r.text.length - cur.at) / 6)); }
+  cur.at = Math.min(r.text.length, cur.at + cur.step);
+  if (cur.at < r.text.length && !revealTimer) {
+    revealTimer = setTimeout(() => { revealTimer = null; renderLog(currentEvents(), currentOpen()); }, 90);
+  }
+  return Object.assign({}, r, { text: r.text.slice(0, cur.at), partial: r.partial || cur.at < r.text.length });
+}
+function currentEvents() { return viewing ? (viewDoc && viewDoc.sid === viewing ? viewDoc.doc.events : []) : (last ? last.events : []); }
+function currentOpen() { const s = last && last.session; return !viewing && !!(s && s.state !== "idle" && s.state !== "ended"); }
+function renderLog(events, open) {
+  const view = GTCON.viewFor(PHONE.levelOf(prefs, last && last.settings));
+  const rs = PHONE.rows(events, view, { open: open }).map(revealed);
+  const log = $("log"), next = {}, keep = [];
+  rs.forEach(r => {
+    const sig = JSON.stringify([r.text, r.partial, !!ansOpen[r.key], view.level, prefs.stamps, prefs.phoneTag, r.who]);
+    const old = rowsSeen[r.key];
+    const node = old && old.sig === sig ? old.node : rowNode(r);
+    next[r.key] = { sig: sig, node: node };
+    keep.push(node);
+  });
+  rowsSeen = next;
+  clear(log);
+  keep.forEach(n => log.appendChild(n));
+  if (!rs.length) log.appendChild(el("p", "muted", viewing ? "Nothing to show at this view level yet." : "No messages yet."));
+}
+function renderOutbox() {
+  const box = $("outbox"); clear(box);
+  const now = Date.now();
+  const seen = new Set(((last && last.events) || []).filter(e => e.kind === "user").map(e => (e.data || {}).text));
+  outbox = outbox.filter(o => !(o.state === "delivered" && seen.has(o.text)) && now - o.at < 600000);
+  outbox.forEach(o => {
+    const n = el("div", "row user"); n.appendChild(el("div", "bubble", o.text));
+    const words = o.state === "refused" ? "not sent: " + o.why : o.state === "delivered" ? "delivered" :
+      now - o.at > ACK_WAIT_MS ? "no answer from the Mac yet (it may be asleep or offline)" : "sending…";
+    n.appendChild(el("div", "tag", words));
+    if (o.state === "refused" || now - o.at > ACK_WAIT_MS) {
+      const again = el("button", "link", "Put it back in the box"); again.type = "button";
+      again.onclick = () => { $("input").value = o.text; outbox = outbox.filter(x => x !== o); renderOutbox(); };
+      n.appendChild(again);
+    }
+    box.appendChild(n);
+  });
+}
+function renderCards() {
+  const box = $("cards"); clear(box);
+  if (viewing || !last || !last.session) return;
+  const s = last.session, level = PHONE.levelOf(prefs, last.settings), now = Date.now();
+  const open = {};
+  (last.pending || []).forEach(c => { open[c.request_id] = true; });
+  Object.keys(cardsShown).forEach(k => { if (!open[k]) { delete cardsShown[k]; delete cardLocked[k]; } });
+  (last.pending || []).forEach(c => {
+    if (!cardsShown[c.request_id]) {
+      cardsShown[c.request_id] = now;
+      if (prefs.haptics && navigator.vibrate) { try { navigator.vibrate(20); } catch (e) {} }
+      if (prefs.sound) beep();
+      announce("Approval needed: " + PHONE.card(c, prefs, last.settings, level).title);
+      setTimeout(renderCards, GTCON.CARD_GUARD_MS + 20);
+    }
+    const w = PHONE.card(c, prefs, last.settings, level), n = el("div", "card");
+    n.setAttribute("role", "group"); n.setAttribute("aria-label", w.title);
+    n.appendChild(el("h3", null, w.title));
+    if (w.detail) n.appendChild(el("div", "what", prefs.plain ? w.detail : w.label));
+    if (c.expires_at) n.appendChild(el("div", "left", "No answer by " + GTCON.clock(c.expires_at) + " counts as Deny."));
+    const row = el("div", "btns"), ready = GTCON.cardReady(cardsShown[c.request_id], now), locked = !!cardLocked[c.request_id];
+    const body = { session: s.id, request_id: c.request_id, action_hash: c.action_hash };
+    const deny = el("button", w.primary === "deny" ? "primary" : "danger", "Deny"); deny.type = "button";
+    deny.disabled = !ready || locked;
+    deny.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id]) return; cardLocked[c.request_id] = true; act("deny", body, null); renderCards(); };
+    row.appendChild(deny);
+    if (w.allow) {
+      const allow = el("button", w.primary === "allow" ? "primary" : "", "Allow once"); allow.type = "button";
+      allow.disabled = !ready || locked;
+      allow.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id]) return; cardLocked[c.request_id] = true; act("approve", body, null); renderCards(); };
+      row.appendChild(allow);
+    }
+    n.appendChild(row);
+    if (!w.allow) n.appendChild(el("div", "why", "Answer it at the Mac to allow: " + w.why));
+    if (locked) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
+    box.appendChild(n);
+  });
+}
+function renderChips() {
+  const box = $("chips"); clear(box);
+  PHONE.chips(viewing ? null : last, prefs, Date.now() / 1000).forEach(c => box.appendChild(el("span", "chip" + (c.tone ? " " + c.tone : ""), c.t)));
+  const s = last && last.session, row = viewing && viewDoc && viewDoc.doc.session;
+  say("title", row ? (row.first_prompt || "session " + String(row.session_id || "").slice(0, 6)) :
+               s ? ((last.sessions || []).filter(x => x.session_id === s.id).map(x => x.first_prompt)[0] || "session " + s.id.slice(0, 6)) : "gt phone");
+}
+function renderConn(err) {
+  const c = $("conn"); clear(c);
+  const nowS = Date.now() / 1000;
+  let words, cls = "";
+  if (err) { words = "Cannot read the feed: " + err; cls = "bad"; }
+  else if (!last) { words = "Waiting for the Mac…"; cls = "warn"; }
+  else {
+    const age = nowS - last.at, name = (last.mac && last.mac.name) || "the Mac";
+    words = (age < 360 ? "Connected to " : "Mac not seen recently: ") + name + " · seen " + PHONE.ago(age);
+    if (age >= 360) cls = "warn";
+  }
+  if (rate.left !== null && rate.left < 100) { words += " · GitHub requests left this hour: " + rate.left; cls = cls || "warn"; }
+  c.className = cls;
+  c.appendChild(el("span", null, words));
+  if (err || cls) { const b = el("button", "link", "Retry"); b.type = "button"; b.onclick = () => { rate.waitUntil = 0; kick(0); }; c.appendChild(b); }
+}
+function renderViewing() {
+  const v = $("viewing"); clear(v);
+  v.hidden = !viewing;
+  if (!viewing) return;
+  const row = ((last && last.sessions) || []).filter(x => x.session_id === viewing)[0] || {};
+  v.appendChild(el("span", null, "Viewing " + (row.first_prompt ? "“" + row.first_prompt + "”" : "session " + viewing.slice(0, 6)) +
+                   (viewDoc && viewDoc.sid === viewing ? "" : ": asking the Mac for it…") + " (read only)"));
+  const back = el("button", "link", "Back to live"); back.type = "button";
+  back.onclick = () => { viewing = null; viewDoc = null; rowsSeen = {}; renderAll(); };
+  v.appendChild(back);
+}
+function renderActivity() {
+  const a = $("activity");
+  const words = !viewing && prefs.activity && last ? PHONE.activity(last, GTCON.viewFor(PHONE.levelOf(prefs, last.settings)), Date.now()) : "";
+  a.textContent = words; a.hidden = !words;
+}
+function renderSugg() {
+  const box = $("sugg"); clear(box);
+  const list = !viewing && prefs.sugg && last && last.session && last.session.phone_prompts ? (last.suggestions || []) : [];
+  box.hidden = !list.length;
+  list.forEach(s => {
+    const b = el("button", null, s.label); b.type = "button"; b.setAttribute("aria-label", "Suggestion: " + s.prompt);
+    b.onclick = () => {
+      if (prefs.suggTap === "send") { $("input").value = s.prompt; sendPrompt(); }
+      else { $("input").value = s.prompt; $("input").focus(); autosize(); }
+    };
+    box.appendChild(b);
+  });
+}
+function renderComposer() {
+  const why = PHONE.composerWhy(last, viewing), s = last && last.session, busy = s && (s.state === "running" || s.state === "waiting_approval" || s.state === "starting");
+  const input = $("input"), btn = $("send");
+  input.disabled = !!why;
+  input.setAttribute("placeholder", why || "Message Claude (Ask mode: every tool call asks)");
+  if (busy && !viewing) { btn.textContent = "■"; btn.setAttribute("aria-label", "Interrupt the running turn"); btn.disabled = false; btn.className = "danger"; }
+  else { btn.textContent = "↑"; btn.setAttribute("aria-label", "Send"); btn.disabled = !!why; btn.className = "primary"; }
+}
+function renderAcks() {
+  ((last && last.acks) || []).forEach(a => {
+    const s = sent[a.id];
+    if (!s) return;
+    delete sent[a.id];
+    if (s.type === "prompt") { const o = outbox.filter(x => x.id === a.id)[0]; if (o) { o.state = a.ok ? "delivered" : "refused"; o.why = a.message; } }
+    if (s.type === "approve" || s.type === "deny") delete cardLocked[s.request_id];
+    if (s.type !== "prompt" || !a.ok) say("note", PHONE.ackWords(s.type, a));
+  });
+}
+function notifyTurn() {
+  const s = last && last.session, state = s ? s.state : "";
+  if (turnWas && turnWas !== "idle" && state === "idle") {
+    announce("Claude answered.");
+    if (prefs.haptics && navigator.vibrate) { try { navigator.vibrate([10, 40, 10]); } catch (e) {} }
+    if (prefs.sound) beep();
+  }
+  turnWas = state;
+  const busy = s && state !== "idle" && state !== "ended";
+  if (prefs.awake && busy && !document.hidden && !wake && navigator.wakeLock) {
+    navigator.wakeLock.request("screen").then(l => { wake = l; }, () => {});
+  } else if (wake && (!busy || !prefs.awake)) { try { wake.release(); } catch (e) {} wake = null; }
+}
+function beep() {
+  try {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    const ctx = new C(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = 660; g.gain.value = 0.05; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.12);
+  } catch (e) { /* no sound here */ }
+}
+function renderAll() {
+  const sc = $("scroll");
+  const atBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80;
+  renderAcks();
+  renderConn();
+  renderChips();
+  renderViewing();
+  renderLog(currentEvents(), currentOpen());
+  renderOutbox();
+  renderCards();
+  renderActivity();
+  renderSugg();
+  renderComposer();
+  notifyTurn();
+  if (prefs.autoscroll && atBottom) sc.scrollTop = sc.scrollHeight;
+  else $("jump").hidden = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80;
+}
+
+// ---- the composer
+function autosize() { const i = $("input"); i.style.height = "auto"; i.style.height = Math.min(i.scrollHeight, 320) + "px"; store.set("draft", i.value); }
+async function sendPrompt() {
+  const s = last && last.session, text = $("input").value;
+  const why = PHONE.composerWhy(last, viewing) || PHONE.promptCheck(text);
+  if (why) { say("note", why); return; }
+  $("input").value = ""; store.del("draft"); autosize();
+  const o = { text: text, at: Date.now(), state: "sending" };
+  outbox.push(o); renderOutbox();
+  const id = await act("prompt", { session: s.id, text: text }, null);
+  if (id) { o.id = id; } else { o.state = "refused"; o.why = "it could not be written to GitHub"; }
+  renderOutbox();
+}
+
+// ---- sheets: sessions and settings
+function openSheet(which, title) {
+  sheetOpen = which;
+  say("sheet-title", title);
+  $("sheet").hidden = false;
+  $("sheet-close").focus();
+}
+function closeSheet() { sheetOpen = ""; $("sheet").hidden = true; clear($("sheet-body")); $("b-" + "settings").focus(); }
+function openSessions() {
+  openSheet("sessions", "Sessions");
+  const b = $("sheet-body"); clear(b);
+  const rows = PHONE.sessions(last, prefs.ended, Date.now());
+  if (!rows.length) b.appendChild(el("p", "muted", last ? "No sessions on the Mac yet: start one in the gt console." : "Waiting for the Mac…"));
+  rows.forEach(r => {
+    const btn = el("button", "srow" + (r.promptable ? " live" : "")); btn.type = "button";
+    btn.appendChild(el("span", null, r.prompt || r.label));
+    btn.appendChild(el("span", "sub", [r.promptable ? "live: prompts go here" : r.stateWord, r.model, r.live ? "started " + r.started : "ended " + (r.ended || r.started)].filter(Boolean).join(" · ")));
+    btn.onclick = () => {
+      closeSheet();
+      if (r.promptable) { viewing = null; viewDoc = null; }
+      else { viewing = r.sid; viewDoc = null; act("view", { session: r.sid }, null); }
+      rowsSeen = {}; renderAll();
+    };
+    b.appendChild(btn);
+  });
+  const s = last && last.session;
+  if (s) {
+    b.appendChild(el("h3", null, "This session"));
+    const full = el("button", "srow", "Open its full record (read only)"); full.type = "button";
+    full.onclick = () => { closeSheet(); viewing = s.id; viewDoc = null; act("view", { session: s.id }, null); rowsSeen = {}; renderAll(); };
+    const intr = el("button", "srow", "Interrupt the running turn"); intr.type = "button";
+    intr.onclick = () => { closeSheet(); act("interrupt", { session: s.id }, null); };
+    const stop = el("button", "srow danger", "Stop this session"); stop.type = "button";
+    stop.onclick = () => { if (!prefs.confirmStop || confirm("Stop the session at the Mac? Its open approvals are denied.")) { closeSheet(); act("stop", { session: s.id }, null); } };
+    [full, intr, stop].forEach(x => b.appendChild(x));
+  }
+}
+const SETTINGS = [
+  ["Display"],
+  ["theme", "Theme", { auto: "Follow the phone", light: "Light", dark: "Dark", contrast: "High contrast" }],
+  ["size", "Text size", null],
+  ["density", "Spacing", { comfortable: "Comfortable", compact: "Compact" }],
+  ["level", "View level", { mac: "Follow the Mac", minimal: "Minimal", simple: "Simple", answers: "Answers", steps: "Steps", everything: "Everything" },
+   "Minimal: your message, one line while Claude works, then its closing question. Everything adds steps, thinking and system lines."],
+  ["plain", "Plain words on approval cards", null, "“Read a file” instead of the tool's name and command (details stay one tap away)."],
+  ["activity", "Show the activity line", null],
+  ["modelChip", "Show the model", null],
+  ["ctxChip", "Show context and weekly readings", null, "Percentages only, as the console shows them."],
+  ["stamps", "Show times", null],
+  ["phoneTag", "Tag messages sent from the phone", null],
+  ["motion", "Motion", { auto: "Follow the phone", reduce: "Reduce" }],
+  ["Behaviour"],
+  ["card", "Approval card default", { mac: "Follow the Mac", allow: "Allow once", deny: "Deny" }, "Which button is highlighted. Every card still waits 0.7 s before it takes a tap."],
+  ["sugg", "Suggested prompts", null],
+  ["suggTap", "Tapping a suggestion", { fill: "Puts it in the box", send: "Sends it" }],
+  ["enterSends", "Return sends the message", null],
+  ["autoscroll", "Follow new messages", null],
+  ["haptics", "Vibrate on approvals and answers", null, "Where this browser can."],
+  ["sound", "Sound on approvals and answers", null],
+  ["poll", "Check for news", { auto: "Adaptive (3 s busy, 5 s, then 15 s)", "3": "Every 3 s", "5": "Every 5 s", "10": "Every 10 s", "30": "Every 30 s" }, "Slower uses fewer GitHub requests."],
+  ["awake", "Keep the screen on while Claude works", null],
+  ["ended", "List ended sessions", null],
+  ["confirmStop", "Ask before stopping a session", null]
+];
+function control(key, label, opts, help) {
+  const row = el("div", "set"), lab = el("label", null, label), id = "set-" + key;
+  lab.setAttribute("for", id);
+  if (help) lab.appendChild(el("span", "help", help));
+  row.appendChild(lab);
+  let c;
+  if (key === "size" || opts) {
+    c = el("select");
+    const choices = key === "size" ? PHONE.SIZES.map(n => [String(n), n + " pt"]) : Object.keys(opts).map(k => [k, opts[k]]);
+    choices.forEach(([v, t]) => { const o = el("option", null, t); o.value = v; c.appendChild(o); });
+    c.value = String(prefs[key]);
+    c.onchange = () => { prefs[key] = key === "size" ? Number(c.value) : c.value; prefs = PHONE.cleanPrefs(prefs); savePrefs(); applyPrefs(); rowsSeen = {}; renderAll(); };
+  } else {
+    c = el("input"); c.type = "checkbox"; c.checked = !!prefs[key];
+    c.onchange = () => { prefs[key] = !!c.checked; savePrefs(); applyPrefs(); rowsSeen = {}; renderAll(); };
+  }
+  c.id = id;
+  row.appendChild(c);
+  return row;
+}
+// One of the Mac's two phone-settable defaults: a signed "setting" request; the Mac checks and audits it.
+function macControl(key, label, set) {
+  const row = el("div", "set"), lab = el("label", null, label + " (on the Mac)"), id = "mac-" + key, c = el("select");
+  lab.setAttribute("for", id);
+  lab.appendChild(el("span", "help", "Changes the Mac's own default, for the console there too."));
+  row.appendChild(lab);
+  const opts = PHONE.MAC_SETTABLE[key];
+  Object.keys(opts).forEach(v => { const o = el("option", null, opts[v]); o.value = v; c.appendChild(o); });
+  c.value = PHONE.macSettingNow(key, set);
+  c.onchange = () => {
+    const why = PHONE.macSettingWhy(key, c.value, last && last.settings);
+    if (why) { say("note", label + ": " + why); c.value = PHONE.macSettingNow(key, last && last.settings); return; }
+    act("setting", { key: key, value: c.value }, null);
+  };
+  c.id = id;
+  row.appendChild(c);
+  return row;
+}
+function ro(label, value) { const r = el("div", "ro"); r.appendChild(el("span", null, label)); r.appendChild(el("span", null, value)); return r; }
+function openSettings(refresh) {
+  if (!refresh) openSheet("settings", "Settings");
+  const b = $("sheet-body"); clear(b);
+  SETTINGS.forEach(s => { if (s.length === 1) b.appendChild(el("h3", null, s[0])); else b.appendChild(control(s[0], s[1], s[2], s[3])); });
+  const nowS = Date.now() / 1000, st = last || {}, mac = st.mac || {}, set = st.settings || {};
+  b.appendChild(el("h3", null, "The Mac (read only)"));
+  b.appendChild(ro("Paired Mac", mac.name || "not seen yet"));
+  b.appendChild(ro("Relay", last ? "on · feed written " + PHONE.ago(nowS - st.at) : "no feed yet"));
+  b.appendChild(ro("This phone seen by the Mac", st.phone_seen ? PHONE.ago(nowS - st.phone_seen) : "not yet"));
+  b.appendChild(ro("Audit, last day", PHONE.auditWords(st.audit, nowS)));
+  const may = (set.mac || []).filter(m => PHONE.macSettingWhy(m.key, PHONE.macSettingNow(m.key, set), set) === null);
+  (set.mac || []).forEach(m => { if (may.indexOf(m) < 0) b.appendChild(ro(m.label, m.value + " · change at the Mac")); });
+  if (may.length) {
+    b.appendChild(el("h3", null, "The Mac's defaults this phone may change"));
+    may.forEach(m => b.appendChild(macControl(m.key, m.label, set)));
+  } else {
+    b.appendChild(ro("Mac settings this phone may change", "none: change them at the Mac"));
+  }
+  b.appendChild(el("p", "muted", "Raising the mode, every other setting, pairing and the Touch ID unlock stay at the Mac."));
+  b.appendChild(el("h3", null, "This phone"));
+  b.appendChild(ro("Name", (cfg && cfg.name) || "phone"));
+  b.appendChild(ro("Repository", cfg ? cfg.repo + " (" + cfg.branch + ")" : ""));
+  b.appendChild(ro("GitHub requests left this hour", rate.left === null ? "not known yet" : String(rate.left)));
+  b.appendChild(ro("Screen wake lock", navigator.wakeLock ? "available" : "not available in this browser: keep the page open"));
+  const tok = el("button", "srow", "Change the GitHub token"); tok.type = "button";
+  tok.onclick = () => { const t = prompt("New GitHub token (fine-grained, contents read and write on that one repository)"); if (t && t.trim()) { store.set("token", t.trim()); say("note", "Token changed."); } };
+  const clr = el("button", "srow", "Clear local data (keeps the pairing)"); clr.type = "button";
+  clr.onclick = () => { if (!confirm("Clear this phone's settings, draft and saved feed? The pairing stays.")) return; clearLocal(); };
+  const fgt = el("button", "srow danger", "Forget this pairing"); fgt.type = "button";
+  fgt.onclick = async () => { if (!confirm("Forget this pairing? Pair again at the Mac to use the phone, and forget this phone at the Mac too (gt console or gt_phone_relay.py unpair).")) return; await unpairHere(); };
+  [tok, clr, fgt].forEach(x => b.appendChild(x));
+}
+function clearLocal() {
+  ["prefs", "draft", "sealed"].forEach(k => store.del(k));
+  prefs = PHONE.prefsDefaults(); applyPrefs(); etag = ""; ansOpen = {}; rowsSeen = {};
+  say("note", "Local data cleared; the pairing is kept.");
+  if (sheetOpen === "settings") openSettings(true);
+}
+async function unpairHere() {
+  store.clear();
+  try { await idb("readwrite", st => st.clear()); } catch (e) { /* nothing stored */ }
+  K = P = cfg = last = null;
+  clearTimeout(timer);
+  closeSheet();
+  show("unpaired"); say("unpaired-why", "This phone forgot the pairing.");
+}
+
+// ---- pull to refresh, the jump button, keys
+function wire() {
+  const sc = $("scroll"), ptr = $("ptr");
+  let y0 = null, armed = false;
+  sc.addEventListener("touchstart", e => { y0 = sc.scrollTop <= 0 && e.touches && e.touches[0] ? e.touches[0].clientY : null; armed = false; }, { passive: true });
+  sc.addEventListener("touchmove", e => {
+    if (y0 === null || !e.touches || !e.touches[0]) return;
+    const dy = e.touches[0].clientY - y0;
+    armed = dy > 64;
+    ptr.className = dy > 8 ? "on" : "";
+    ptr.textContent = armed ? "Release to refresh" : "Pull to refresh";
+  }, { passive: true });
+  sc.addEventListener("touchend", () => { if (armed) { etag = ""; rate.waitUntil = 0; kick(0); } y0 = null; armed = false; ptr.className = ""; });
+  sc.addEventListener("scroll", () => { if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80) $("jump").hidden = true; }, { passive: true });
+  $("jump").onclick = () => { sc.scrollTop = sc.scrollHeight; $("jump").hidden = true; };
+  $("send").onclick = () => {
+    const s = last && last.session;
+    if (s && !viewing && (s.state === "running" || s.state === "waiting_approval" || s.state === "starting")) act("interrupt", { session: s.id }, null);
+    else sendPrompt();
+  };
+  $("input").addEventListener("input", autosize);
+  $("input").addEventListener("keydown", e => { if (prefs.enterSends && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendPrompt(); } });
+  $("b-sessions").onclick = openSessions;
+  $("b-settings").onclick = () => openSettings(false);
+  $("sheet-close").onclick = closeSheet;
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && sheetOpen) closeSheet(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { hello(true); kick(0); } });
+  const mq = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  if (mq && mq.matches && prefs.motion === "auto") document.documentElement.setAttribute("data-motion", "reduce");
+}
+
+async function main() {
+  loadPrefs(); applyPrefs();
+  const m = /#gt-phone=([A-Za-z0-9_-]+)$/.exec(location.hash || "");
+  if (m) return startPairing(m[1]);
+  try { cfg = JSON.parse(store.get("cfg") || "null"); } catch (e) { cfg = null; }
+  if (cfg) { K = await idb("readonly", st => st.get("K")); P = await idb("readonly", st => st.get("P")); }
+  if (!cfg || !K || !P || !REPO_RE.test(cfg.repo) || !BRANCH_RE.test(cfg.branch) || !/^[0-9a-f]{16}$/.test(cfg.pair || "") ||
+      (cfg.api !== undefined && !API_RE.test(cfg.api))) { show("unpaired"); return; }
+  show("app");
+  wire();
+  $("input").value = store.get("draft") || "";
+  const cached = store.get("sealed");                 // the last feed, still sealed: opens with K or not at all
+  if (cached) {
+    try { const st = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, OUT, enc.encode(cached)))); if (PHONE.feedOk(st)) last = st; } catch (e) { store.del("sealed"); }
+  }
+  renderAll();
+  hello(true);
+  await tick();
+}
+main();
+</script>
+</body>
+</html>
