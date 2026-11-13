@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QklGV/mC9oUVPl9fiybaTx/5BnseK4o976U7V0sJ+Qw='; style-src 'sha256-LgEddPstyQ+546Cxy8MxtgaGE3LwI2aiZmT75TE3X1Q='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nUcu/CNhBvH8/kvXt/xXsF4qXKBci6abIlRHfROSP/I='; style-src 'sha256-/KzLi07Wfi8YCkwUkxEK0wUqta3WwFd8ccJkdp33ZjY='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -119,6 +119,10 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
   border: 1px solid var(--line); background: var(--card); }
 #send { border-radius: 999px; width: 44px; padding: 0; font-size: 1.2em; }
 #note { font-size: 0.8em; color: var(--warn); padding: 0 16px; }
+/* The conversation shrinks; the strips around the box never do. A sideways-scrolling strip (the command and
+   suggestion chips) may otherwise shrink to nothing when the keyboard takes the space. */
+#activity, .sugg, #composer, #note { flex: 0 0 auto; }
+#input::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10;
   padding: env(safe-area-inset-top) calc(16px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); }
@@ -1418,7 +1422,8 @@ function renderComposer() {
   const why = PHONE.composerWhy(last, viewing), s = last && last.session, busy = s && (s.state === "running" || s.state === "waiting_approval" || s.state === "starting");
   const input = $("input"), btn = $("send");
   input.disabled = !!why;
-  input.setAttribute("placeholder", why || "Message Claude (Ask mode: every tool call asks)");
+  input.setAttribute("placeholder", why || "Message Claude, or / for gt commands");
+  input.setAttribute("aria-label", why ? "Message Claude" : "Message Claude (Ask mode: every tool call asks)");
   if (busy && !viewing) { btn.textContent = "■"; btn.setAttribute("aria-label", "Interrupt the running turn"); btn.disabled = false; btn.className = "danger"; }
   else { btn.textContent = "↑"; btn.setAttribute("aria-label", "Send"); btn.disabled = !!why; btn.className = "primary"; }
 }
