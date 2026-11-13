@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oYGohPJT7kQWrQ4QHqAXzagIxZNykQ3OD9L46MU6s2A='; style-src 'sha256-z/ASptUTPFiyWEjhiinQ+SFEOLVjLfgm1gZ9eNSCV50='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QklGV/mC9oUVPl9fiybaTx/5BnseK4o976U7V0sJ+Qw='; style-src 'sha256-LgEddPstyQ+546Cxy8MxtgaGE3LwI2aiZmT75TE3X1Q='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -101,10 +101,15 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
   overflow: auto; background: var(--code); border-radius: 8px; padding: 6px 8px; }
 .card .why, .card .left { font-size: 0.82em; color: var(--muted); }
 .btns { display: flex; gap: 8px; margin-top: 8px; }
+.ask { border: 1px solid var(--muted); border-radius: 8px; margin: 8px 0; padding: 6px 8px; }
+.ask legend { font-weight: 600; font-size: 0.9em; padding: 0 4px; }
+.opt { display: block; width: 100%; text-align: left; margin: 4px 0; white-space: normal; }
+.opt.on { font-weight: 700; outline: 2px solid currentColor; }
 .btns button { flex: 1 1 0; }
 #outbox .row .bubble { opacity: 0.75; }
 #jump { position: fixed; right: 16px; bottom: calc(110px + env(safe-area-inset-bottom)); border-radius: 999px;
-  background: var(--card); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+  width: 44px; height: 44px; padding: 0; font-size: 1.4em; line-height: 1; z-index: 5;
+  background: var(--card); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
 #activity { font-size: 0.85em; color: var(--muted); padding: 2px 16px; min-height: 0; }
 .sugg { display: flex; gap: 6px; overflow-x: auto; padding: 4px 12px; scrollbar-width: none; }
 .sugg button { flex: 0 0 auto; min-height: 36px; padding: 4px 12px; border-radius: 999px; font-size: 0.85em; }
@@ -989,7 +994,7 @@ function idb(mode, fn) {
 }
 let K = null, P = null, cfg = null, last = null, viewing = null, viewDoc = null, prefs = PHONE.prefsDefaults();
 let sent = {}, outbox = [], etag = "", rate = { left: null, waitUntil: 0 }, timer = null, lastHello = 0, lastChange = Date.now();
-let rowsSeen = {}, ansOpen = {}, cardsShown = {}, cardLocked = {}, wake = null, turnWas = "", sheetOpen = "";
+let rowsSeen = {}, ansOpen = {}, cardsShown = {}, cardLocked = {}, cardPicks = {}, wake = null, turnWas = "", sheetOpen = "";
 let reveal = {}, revealTimer = null;
 
 function el(tag, cls, text) {
@@ -1046,7 +1051,18 @@ async function gh(method, path, body, extra) {
 }
 function stdB64(bytes) { let s = ""; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s); }
 function fromContents(r) { return unb64u(String(r.content || "").replace(/\s/g, "").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")); }
-async function putFile(path, bytes) { return gh("PUT", path, { message: "gt phone", content: stdB64(bytes), branch: cfg.branch }); }
+// GitHub answers 409 when two commits reach the branch at the same moment (this phone and the Mac relay both write
+// to it). A request file is a new path, so trying again is safe; only a 409 is retried, a few times, with a short gap.
+async function putFile(path, bytes) {
+  const body = { message: "gt phone", content: stdB64(bytes), branch: cfg.branch };
+  for (let n = 0; ; n++) {
+    try { return await gh("PUT", path, body); }
+    catch (e) {
+      if (n >= 3 || !/answered 409\b/.test(String(e && e.message))) throw e;
+      await new Promise(res => setTimeout(res, 300 + Math.random() * 500 + n * 400));
+    }
+  }
+}
 
 // ---- pairing (as built: the link's fragment, then the six digits typed at the Mac)
 async function startPairing(frag) {
@@ -1279,7 +1295,7 @@ function renderCards() {
   const s = last.session, level = PHONE.levelOf(prefs, last.settings), now = Date.now();
   const open = {};
   (last.pending || []).forEach(c => { open[c.request_id] = true; });
-  Object.keys(cardsShown).forEach(k => { if (!open[k]) { delete cardsShown[k]; delete cardLocked[k]; } });
+  Object.keys(cardsShown).forEach(k => { if (!open[k]) { delete cardsShown[k]; delete cardLocked[k]; delete cardPicks[k]; } });
   (last.pending || []).forEach(c => {
     if (!cardsShown[c.request_id]) {
       cardsShown[c.request_id] = now;
@@ -1291,15 +1307,46 @@ function renderCards() {
     const w = PHONE.card(c, prefs, last.settings, level), n = el("div", "card");
     n.setAttribute("role", "group"); n.setAttribute("aria-label", w.title);
     n.appendChild(el("h3", null, w.title));
-    if (w.detail) n.appendChild(el("div", "what", prefs.plain ? w.detail : w.label));
+    const asking = c.kind === "question" && w.allow && Array.isArray(c.questions) && c.questions.length > 0;
+    const picks = cardPicks[c.request_id] || (cardPicks[c.request_id] = {});
+    if (asking) {
+      // a question Claude asked: each question with its options as buttons; one pick, or several when it is a multi-select
+      c.questions.forEach(q => {
+        const fs = el("fieldset", "ask");
+        fs.appendChild(el("legend", null, (q.header ? q.header + ": " : "") + q.question));
+        (q.options || []).forEach(o => {
+          const on = (picks[q.question] || []).indexOf(o.label) >= 0;
+          const b = el("button", on ? "opt on" : "opt", (on ? "✓ " : "") + o.label + (o.description ? " — " + o.description : ""));
+          b.type = "button"; b.setAttribute("aria-pressed", on ? "true" : "false");
+          b.onclick = () => {
+            const cur = picks[q.question] || [];
+            picks[q.question] = q.multiSelect ? (on ? cur.filter(x => x !== o.label) : cur.concat([o.label])) : [o.label];
+            renderCards();
+          };
+          fs.appendChild(b);
+        });
+        n.appendChild(fs);
+      });
+    } else if (w.detail) n.appendChild(el("div", "what", prefs.plain ? w.detail : w.label));
     if (c.expires_at) n.appendChild(el("div", "left", "No answer by " + GTCON.clock(c.expires_at) + " counts as Deny."));
     const row = el("div", "btns"), ready = GTCON.cardReady(cardsShown[c.request_id], now), locked = !!cardLocked[c.request_id];
     const body = { session: s.id, request_id: c.request_id, action_hash: c.action_hash };
-    const deny = el("button", w.primary === "deny" ? "primary" : "danger", "Deny"); deny.type = "button";
+    const deny = el("button", w.primary === "deny" ? "primary" : "danger", asking ? "Decline" : "Deny"); deny.type = "button";
     deny.disabled = !ready || locked;
     deny.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id]) return; cardLocked[c.request_id] = true; act("deny", body, null); renderCards(); };
     row.appendChild(deny);
-    if (w.allow) {
+    if (asking) {
+      const done = c.questions.every(q => (picks[q.question] || []).length > 0);
+      const send = el("button", "primary", "Send answer"); send.type = "button";
+      send.disabled = !ready || locked || !done;
+      send.onclick = () => {
+        if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id] || !done) return;
+        const answers = {};
+        c.questions.forEach(q => { const p = picks[q.question] || []; answers[q.question] = q.multiSelect ? p : p[0]; });
+        cardLocked[c.request_id] = true; act("answer", Object.assign({}, body, { answers: answers }), null); renderCards();
+      };
+      row.appendChild(send);
+    } else if (w.allow) {
       const allow = el("button", w.primary === "allow" ? "primary" : "", "Allow once"); allow.type = "button";
       allow.disabled = !ready || locked;
       allow.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id]) return; cardLocked[c.request_id] = true; act("approve", body, null); renderCards(); };
@@ -1406,9 +1453,15 @@ function beep() {
     o.frequency.value = 660; g.gain.value = 0.05; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.12);
   } catch (e) { /* no sound here */ }
 }
+// ---- following the bottom
+let stick = true;                    // the person is at the bottom (set by their own scrolling only)
+function toBottom() { const sc = $("scroll"); stick = true; sc.scrollTop = sc.scrollHeight; $("jump").hidden = true; }
+function followBottom() {
+  const sc = $("scroll"), d = () => sc.scrollHeight - sc.scrollTop - sc.clientHeight;
+  if (prefs.autoscroll && stick) { sc.scrollTop = sc.scrollHeight; $("jump").hidden = true; }
+  else { $("jump").hidden = d() < 160; }
+}
 function renderAll() {
-  const sc = $("scroll");
-  const atBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80;
   renderAcks();
   renderConn();
   renderChips();
@@ -1420,8 +1473,7 @@ function renderAll() {
   renderSugg();
   renderComposer();
   notifyTurn();
-  if (prefs.autoscroll && atBottom) sc.scrollTop = sc.scrollHeight;
-  else $("jump").hidden = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80;
+  followBottom();
 }
 
 // ---- the composer
@@ -1432,7 +1484,7 @@ async function sendPrompt() {
   if (why) { say("note", why); return; }
   $("input").value = ""; store.del("draft"); autosize();
   const o = { text: text, at: Date.now(), state: "sending" };
-  outbox.push(o); renderOutbox();
+  outbox.push(o); renderOutbox(); toBottom();
   const id = await act("prompt", { session: s.id, text: text }, null);
   if (id) { o.id = id; } else { o.state = "refused"; o.why = "it could not be written to GitHub"; }
   renderOutbox();
@@ -1601,8 +1653,18 @@ function wire() {
     ptr.textContent = armed ? "Release to refresh" : "Pull to refresh";
   }, { passive: true });
   sc.addEventListener("touchend", () => { if (armed) { etag = ""; rate.waitUntil = 0; kick(0); } y0 = null; armed = false; ptr.className = ""; });
-  sc.addEventListener("scroll", () => { if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80) $("jump").hidden = true; }, { passive: true });
-  $("jump").onclick = () => { sc.scrollTop = sc.scrollHeight; $("jump").hidden = true; };
+  // Following the bottom is decided by the person's own scrolling, never by a layout change: the outbox, an
+  // approval card, an image or the keyboard can grow the page by more than the threshold between two renders.
+  sc.addEventListener("scroll", () => {
+    const d = sc.scrollHeight - sc.scrollTop - sc.clientHeight;
+    stick = d < 80;
+    $("jump").hidden = d < 160;
+  }, { passive: true });
+  $("jump").onclick = () => toBottom();
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => followBottom());
+    [sc, $("log"), $("outbox"), $("cards")].forEach(n => { if (n) ro.observe(n); });
+  }
   $("send").onclick = () => {
     const s = last && last.session;
     if (s && !viewing && (s.state === "running" || s.state === "waiting_approval" || s.state === "starting")) act("interrupt", { session: s.id }, null);
