@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AA25Eos+H4pe2BuZ3oohNNhUTK11Ib5rF6tWnbGnY3Y='; style-src 'sha256-LS4o++PB271G18sJoRDJOYfutgyKP1dvk1phz/m/7bQ='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ZRi+eCfMg4DhCyrgkmSU/DQ/Ey7UeKAG6tmEqbIOJLs='; style-src 'sha256-LS4o++PB271G18sJoRDJOYfutgyKP1dvk1phz/m/7bQ='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -353,17 +353,23 @@ var GTCON = (function () {
     if (/[?:]$/.test(tail) && !/^\s*([-*+]|\d+[.)])\s/.test(lastP.split("\n").slice(-1)[0])) {
       return { text: lastP, kind: "question", whole: lastP === t };
     }
-    var first = "", heading = "";                    // a heading is no sentence: it is used only when nothing else is there
+    var first = "", heading = "", tbl = [];          // a heading or a bold label is no sentence: used only when nothing else is there
     for (var i = 0; i < prose.length && !first; i++) {
       var lines = prose[i].text.split("\n");
       for (var j = 0; j < lines.length; j++) {
-        var hd = /^\s*#{1,6}\s+/.test(lines[j]);
+        var hd = /^\s*#{1,6}\s+/.test(lines[j]) || /^\s*\*\*[^*]+\*\*\s*:?\s*$/.test(lines[j]);
         var x = lines[j].replace(/^\s*(#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)/, "").replace(/\*\*|__/g, "").trim();
-        if (!x || /^\|/.test(x)) { continue; }
+        if (/^\s*\|/.test(lines[j])) { if (!/^\s*\|[\s:|-]+\|?\s*$/.test(lines[j])) { tbl.push(lines[j]); } continue; }
+        if (!x) { continue; }
         if (hd) { heading = heading || x; continue; }
         first = x;
         break;
       }
+    }
+    if (!first && tbl.length > 1) {                  // no sentence, only a table: its first data row (after the header) says what was done
+      var cells = tbl[1].split("|").map(function (c) { return c.replace(/\*\*|__/g, "").trim(); }).filter(Boolean);
+      if (cells.length > 1 && cells[0].length <= 4) { cells.shift(); }
+      first = cells.join(" \u2014 ");
     }
     first = first || heading;
     var m = /^(.*?[.!?])(\s|$)/.exec(first), one = m ? m[1] : first;
@@ -693,7 +699,7 @@ var PHONE = (function () {
     var ms;
     if (o.hidden) { ms = 60000; }
     else if (o.pref && o.pref !== "auto") { ms = Number(o.pref) * 1000; }
-    else if (o.busy || o.card) { ms = 3000; }
+    else if (o.busy || o.card) { ms = 2000; }
     else if ((o.quietMs || 0) < 120000) { ms = 5000; }
     else { ms = 15000; }
     return Math.max(ms, o.rateWaitMs || 0);
@@ -1466,7 +1472,7 @@ function renderCards() {
       row.appendChild(allow);
     }
     n.appendChild(row);
-    if (!w.allow) n.appendChild(el("div", "why", "Answer it at the Mac to allow: " + w.why));
+    if (!w.allow) n.appendChild(el("div", "why", /^protected/.test(String(w.why || "")) ? "Denied: " + w.why : "Answer it at the Mac to allow: " + w.why));
     if (held) n.appendChild(el("div", "why", held));
     else if (locked) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
     box.appendChild(n);
