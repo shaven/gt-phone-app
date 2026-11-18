@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nUcu/CNhBvH8/kvXt/xXsF4qXKBci6abIlRHfROSP/I='; style-src 'sha256-/KzLi07Wfi8YCkwUkxEK0wUqta3WwFd8ccJkdp33ZjY='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-AA25Eos+H4pe2BuZ3oohNNhUTK11Ib5rF6tWnbGnY3Y='; style-src 'sha256-LS4o++PB271G18sJoRDJOYfutgyKP1dvk1phz/m/7bQ='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -100,6 +100,7 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
 .card .what { font-family: ui-monospace, Menlo, monospace; font-size: 0.82em; white-space: pre-wrap; max-height: 12em;
   overflow: auto; background: var(--code); border-radius: 8px; padding: 6px 8px; }
 .card .why, .card .left { font-size: 0.82em; color: var(--muted); }
+.card .what, .card .why, .card h3 { overflow-wrap: anywhere; }
 .btns { display: flex; gap: 8px; margin-top: 8px; }
 .ask { border: 1px solid var(--muted); border-radius: 8px; margin: 8px 0; padding: 6px 8px; }
 .ask legend { font-weight: 600; font-size: 0.9em; padding: 0 4px; }
@@ -159,6 +160,8 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
     <div id="ptr" aria-hidden="true"></div>
     <div id="log" role="log" aria-label="Conversation" aria-live="off"></div>
     <div id="outbox"></div>
+    <div id="integrity" aria-label="gt integrity"></div>
+    <div id="journal" aria-label="Command journal"></div>
     <div id="cards" aria-label="Approval requests"></div>
   </main>
   <button id="jump" type="button" hidden aria-label="Jump to the newest message">&#8595;</button>
@@ -230,11 +233,12 @@ async function signBody(priv, body) {
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, priv, enc.encode(body));
   return JSON.stringify({ body: body, sig: b64u(sig) });
 }
+const REQUEST_LIFE_S = 240;          // a request's exp - ts: the Mac never acts on it after that
 async function makeRequest(K, priv, pair, type, fields, nowMs) {
   const id = hex(crypto.getRandomValues(new Uint8Array(16)));
   const ts = Math.floor(nowMs / 1000);
-  const body = JSON.stringify(Object.assign({ v: 1, type: type, id: id, pair: pair, ts: ts, exp: ts + 240 }, fields));
-  const path = "phone/in/" + id + ".json";
+  const body = JSON.stringify(Object.assign({ v: 1, type: type, id: id, pair: pair, ts: ts, exp: ts + REQUEST_LIFE_S }, fields));
+  const path = "phone/in/" + pair + "/" + id + ".json";     // each client its own folder (the AAD binds it)
   return { id: id, path: path, bytes: await seal(K, "p2m", pair, path, enc.encode(await signBody(priv, body))) };
 }
 async function makePairRequest(K, keyPair, pair, name, nowMs) {
@@ -882,11 +886,32 @@ var PHONE = (function () {
     rs.sort(function (a, b) { return (b.promptable ? 1 : 0) - (a.promptable ? 1 : 0); });
     return rs;
   }
+  // What each scope lets this phone send (gt_phone_relay.SCOPES): the Mac checks again, this only shows early.
+  var SCOPE_TYPES = { watch: ["hello", "view"],
+                      approve: ["approve", "deny", "answer", "stop", "interrupt", "accept_audit_cut", "window_close", "integrity_restore"],
+                      approve_effects: ["access_decide"], grant_watch: ["follow"], dispatch: ["prompt", "setting"] };
+  // May a phone paired with `scopes` send `type`? Unknown scopes (an older feed): yes, the Mac decides.
+  function scopeAllows(scopes, type) {
+    if (!Array.isArray(scopes)) { return true; }
+    return scopes.some(function (s) { return (SCOPE_TYPES[s] || []).indexOf(type) >= 0; });
+  }
+  // Merge a view file into what the phone holds for that session: a snapshot replaces, a delta appends (D2 P7).
+  function viewMerge(held, doc, keep) {
+    if (!doc || !Array.isArray(doc.events)) { return held || null; }
+    if (doc.snapshot !== false || !held || !Array.isArray(held.events)) { return doc; }
+    var top = held.events.length ? held.events[held.events.length - 1].seq : 0;
+    var add = doc.events.filter(function (e) { return e && typeof e.seq === "number" && e.seq > top; });
+    var out = {}; Object.keys(doc).forEach(function (k) { out[k] = doc[k]; });
+    out.events = held.events.concat(add).slice(-(keep || 400));
+    return out;
+  }
   // Why the prompt box is closed, or "" when the phone may send a prompt now.
   function composerWhy(st, viewing) {
     var s = st && st.session;
     if (viewing) { return "Read only: go back to the live session to type."; }
     if (!st) { return "Waiting for the Mac…"; }
+    if (st.client && !scopeAllows(st.client.scopes, "prompt")) { return "This phone was paired without the right to send prompts (pair it again at the Mac with dispatch)."; }
+    if (heldWhy(st)) { return heldWhy(st); }
     if (!s) { return "No live session: start one at the Mac."; }
     if (!s.phone_prompts) { return "Prompts from the phone run in Ask mode only" + (s.why ? " (" + s.why + ")" : "") + "."; }
     if (st.prompts_left === 0) { return "This phone sent its prompts for this hour; try later."; }
@@ -905,7 +930,8 @@ var PHONE = (function () {
   }
   // A request's answer from the Mac, in words.
   var SENT_WORDS = { prompt: "Prompt", approve: "Allow once", deny: "Deny", stop: "Stop", interrupt: "Interrupt", view: "Session view",
-                     setting: "Mac setting" };
+                     setting: "Mac setting", accept_audit_cut: "Accept the journal cut", integrity_restore: "Restore gt's files",
+                     window_close: "Close the run window" };
   // The two Mac settings this phone may change (gt_phone_relay.PHONE_SETTABLE) and their only values; the Mac
   // checks the same list again and refuses anything else. Every other Mac setting is changed at the Mac.
   var MAC_SETTABLE = { ui_card_default: { allow: "Allow once", deny: "Deny" },
@@ -923,6 +949,36 @@ var PHONE = (function () {
     if (key === "ui_card_default") { return settings.card_default === "deny" ? "deny" : "allow"; }
     if (key === "ui_session_view") { return GTCON.LEVELS.indexOf(settings.view) >= 0 ? settings.view : "minimal"; }
     return null;
+  }
+  // gt's integrity (the feed's `integrity` block, gt_phone_relay._integrity_state): why everything but Restore, the
+  // journal-cut accept, Stop and Interrupt waits ("held: ..."), or "" when gt is not held.
+  function heldWhy(st) {
+    var g = st && st.integrity;
+    if (!g || typeof g !== "object") { return ""; }
+    if (g.state === "TRIPPED") {
+      return "held: gt is TRIPPED (trip " + (/^[0-9a-f]{16}$/.test(String(g.trip_id || "")) ? g.trip_id : "?") +
+        "): its installed files do not match the sealed record. Restore them below, or at the Mac.";
+    }
+    if (g.state === "UPDATING") { return "held: gt is being updated at the Mac; this waits until it finishes."; }
+    return "";
+  }
+  // The Restore card's facts, or null when there is no card (not tripped, or not restorable from the phone, or a
+  // block of the wrong shape). Problem lines are file names from the Mac: they are only ever shown as text.
+  function integrityCard(st) {
+    var g = st && st.integrity, probs;
+    if (!g || typeof g !== "object" || g.state !== "TRIPPED" || g.restorable !== true) { return null; }
+    if (!/^[0-9a-f]{16}$/.test(String(g.trip_id || "")) || !/^[0-9a-f]{64}$/.test(String(g.digest || ""))) { return null; }
+    probs = (Array.isArray(g.problems) ? g.problems : []).slice(0, 4).map(function (x) { return String(x).slice(0, 300); });
+    return { trip: g.trip_id, digest: g.digest, problems: probs,
+             count: typeof g.problems_n === "number" && g.problems_n >= probs.length ? g.problems_n : probs.length,
+             files: typeof g.files === "number" ? g.files : null };
+  }
+  // The Mac's answer to a Restore, in plain words.
+  function restoreWords(ack) {
+    var m = String((ack && ack.message) || "");
+    if (ack && ack.ok) { return "Restored: " + m; }
+    if (/^rate limit/.test(m)) { return "Not now: the Mac takes at most 3 restores an hour; try again later. Nothing was changed."; }
+    return "Restore refused: " + m.replace(/^refused: /, "") + (/nothing was changed/i.test(m) ? "" : " Nothing was changed.");
   }
   function ackWords(type, ack) {
     return (SENT_WORDS[type] || type) + (ack.ok ? ": done" : ": refused, " + String(ack.message || ""));
@@ -964,7 +1020,9 @@ var PHONE = (function () {
            prefsDefaults: prefsDefaults, cleanPrefs: cleanPrefs, levelOf: levelOf, pollMs: pollMs, rateWait: rateWait, ago: ago,
            feedOk: feedOk, safeHref: safeHref, inline: inline, blocks: blocks, rows: rows, activity: activity, card: card,
            chips: chips, sessions: sessions, composerWhy: composerWhy, promptCheck: promptCheck, ackWords: ackWords,
-           auditWords: auditWords, MAC_SETTABLE: MAC_SETTABLE, macSettingWhy: macSettingWhy, macSettingNow: macSettingNow };
+           auditWords: auditWords, MAC_SETTABLE: MAC_SETTABLE, macSettingWhy: macSettingWhy, macSettingNow: macSettingNow,
+           heldWhy: heldWhy, integrityCard: integrityCard, restoreWords: restoreWords, SCOPE_TYPES: SCOPE_TYPES,
+           scopeAllows: scopeAllows, viewMerge: viewMerge };
 })();
 /* gt-phone-pure:end */
 
@@ -973,8 +1031,9 @@ const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._\/-]{0,62}$/;
 // The repository, branch and API base come from the pairing link (its fragment); this page holds none of them.
 const API_DEFAULT = "https://api.github.com";
 const API_RE = /^https:\/\/[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(\/[A-Za-z0-9._~-]+)*$/;
-const OUT = "phone/out/state.json";
-const VIEW_PATH_RE = /^phone\/out\/view-[0-9a-f]{16}\.json$/;
+// Each paired phone (client) has its own folder: phone/in/<pair>/ and phone/out/<pair>/ (D2 P5).
+function outPath() { return "phone/out/" + cfg.pair + "/state.json"; }
+const VIEW_PATH_RE = /^phone\/out\/[0-9a-f]{16}\/view-[0-9a-f]{16}\.json$/;
 const HELLO_MS = 120000, ACK_WAIT_MS = 90000;
 const $ = id => document.getElementById(id);
 const store = {
@@ -997,9 +1056,25 @@ function idb(mode, fn) {
   });
 }
 let K = null, P = null, cfg = null, last = null, viewing = null, viewDoc = null, prefs = PHONE.prefsDefaults();
+let viewCache = {}, retryQ = [];      // the views held per session (a cursor); requests not yet written (same id)
 let sent = {}, outbox = [], etag = "", rate = { left: null, waitUntil: 0 }, timer = null, lastHello = 0, lastChange = Date.now();
 let rowsSeen = {}, ansOpen = {}, cardsShown = {}, cardLocked = {}, cardPicks = {}, wake = null, turnWas = "", sheetOpen = "";
 let reveal = {}, revealTimer = null;
+let journalSent = "";                // "count:head" of an accept_audit_cut sent and not yet answered
+let restoreSent = "", restoreAnswer = "";   // the trip id of an integrity_restore sent and not yet answered; the last answer
+let journalAnswer = "";              // why the last accept_audit_cut came to nothing (not sent, or expired unanswered)
+// A bound request (the Restore and journal-cut cards) that could not be written, or whose lifetime passed with no
+// answer, frees its card again (review L4): `still()` says whether the card is still waiting on that send; `free(why)`
+// clears it and says why. The Mac never acts on a request after its exp, so after it there is nothing to wait for.
+async function boundSend(type, fields, btn, still, free) {
+  const id = await act(type, fields, btn, { noRetry: true });   // a bound card frees itself instead (L4)
+  if (!id) { if (still()) free("Not sent: it could not be written to GitHub. Nothing was done; try again."); return; }
+  setTimeout(() => {
+    if (!sent[id]) return;                                    // answered meanwhile
+    delete sent[id];
+    if (still()) free("No answer from the Mac before the request expired: nothing was done; try again.");
+  }, (REQUEST_LIFE_S + 5) * 1000);
+}
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -1109,14 +1184,37 @@ async function startPairing(frag) {
 function show(which) { ["pairing", "unpaired", "app"].forEach(s => { $(s).hidden = s !== which; }); }
 
 // ---- requests to the Mac (sealed with K, signed with this phone's key)
+// A request that could not be written is kept and written again on the next ticks with the SAME id and bytes, until
+// its lifetime ends: the Mac's receipts make a retry safe (it never runs twice).
 async function send(type, fields, extra) {
   const r = await makeRequest(K, P, cfg.pair, type, fields, Date.now());
-  await putFile(r.path, r.bytes);
+  try { await putFile(r.path, r.bytes); }
+  catch (e) {
+    if (type === "hello" || (extra && extra.noRetry)) throw e;
+    retryQ.push({ r: r, until: Date.now() + REQUEST_LIFE_S * 1000 });
+    sent[r.id] = Object.assign({ type: type, at: Date.now(), queued: true }, extra || {});
+    say("note", "Not sent yet (" + e.message + "): it is tried again with the same request.");
+    return r.id;
+  }
   if (type !== "hello") sent[r.id] = Object.assign({ type: type, at: Date.now() }, extra || {});
   lastChange = Date.now();
   return r.id;
 }
+async function flushRetries() {
+  const keep = [];
+  for (const q of retryQ) {
+    if (Date.now() > q.until) continue;                       // past its lifetime: the Mac would refuse it anyway
+    try { await putFile(q.r.path, q.r.bytes); if (sent[q.r.id]) delete sent[q.r.id].queued; lastChange = Date.now(); }
+    catch (e) { keep.push(q); }
+  }
+  retryQ = keep;
+}
+function can(type) { return PHONE.scopeAllows(last && last.client ? last.client.scopes : null, type); }
 async function act(type, fields, btn, extra) {
+  if (type !== "hello" && !can(type)) {
+    say("note", "This phone was paired without the right to do that: pair it again at the Mac with that right.");
+    return null;
+  }
   if (btn) btn.disabled = true;
   try {
     const id = await send(type, fields, extra);
@@ -1134,12 +1232,18 @@ function hello(force) {
 // ---- reading the feed
 async function poll() {
   try {
-    const r = await gh("GET", OUT, null, { etag: etag });
+    const r = await gh("GET", outPath(), null, { etag: etag });
     if (r && r.notModified) { renderConn(); renderActivity(); return; }
     if (!r || !r.content) { last = null; renderAll(); return; }
     const raw = fromContents(r);
-    const st = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, OUT, raw)));
+    const st = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, outPath(), raw)));
     if (!PHONE.feedOk(st)) throw new Error("the Mac's feed has a shape this page does not know");
+    if (st.expired === true) {                                // one sealed notice, then no feed (D2 P5)
+      clearTimeout(timer); show("unpaired");
+      say("unpaired-why", "This phone's pairing expired. At the Mac: gt_phone_relay.py renew " + cfg.pair + " (Touch ID), then reload.");
+      return;
+    }
+    if (st.client && st.client.expiring) say("note", "This phone's pairing ends on " + new Date(st.client.expires_at * 1000).toDateString() + ": renew it at the Mac.");
     etag = r.__etag || "";
     store.set("sealed", dec.decode(raw));
     if (!last || last.at !== st.at) lastChange = Date.now();
@@ -1152,16 +1256,20 @@ async function poll() {
 }
 async function loadView() {
   const v = last && last.views && last.views[viewing];
-  if (!v || !VIEW_PATH_RE.test(v.path || "") || v.path !== "phone/out/view-" + viewing + ".json") return;
+  if (!v || !VIEW_PATH_RE.test(v.path || "") || v.path !== "phone/out/" + cfg.pair + "/view-" + viewing + ".json") return;
   if (viewDoc && viewDoc.sid === viewing && viewDoc.at >= v.at) return;
   const r = await gh("GET", v.path);
   if (!r || !r.content) return;
   const doc = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, v.path, fromContents(r))));
-  if (doc && Array.isArray(doc.events)) viewDoc = { sid: viewing, at: v.at, doc: doc };
+  const merged = PHONE.viewMerge(viewCache[viewing], doc, 400);
+  if (merged && Array.isArray(merged.events)) { viewCache[viewing] = merged; viewDoc = { sid: viewing, at: v.at, doc: merged }; }
 }
 function kick(ms) { clearTimeout(timer); timer = setTimeout(tick, ms || 0); }
+// The view request carries a cursor: the newest seq this phone holds for that session (0: everything).
+function askView(sid) { const h = viewCache[sid]; act("view", { session: sid, after: h && typeof h.newest === "number" ? h.newest : 0 }, null); }
 async function tick() {
   clearTimeout(timer);
+  if (retryQ.length) await flushRetries();
   if (!document.hidden) { await poll(); hello(false); }
   const s = last && last.session;
   timer = setTimeout(tick, PHONE.pollMs({ hidden: document.hidden, pref: prefs.poll, busy: s && s.state !== "idle" && s.state !== "ended",
@@ -1333,18 +1441,19 @@ function renderCards() {
       });
     } else if (w.detail) n.appendChild(el("div", "what", prefs.plain ? w.detail : w.label));
     if (c.expires_at) n.appendChild(el("div", "left", "No answer by " + GTCON.clock(c.expires_at) + " counts as Deny."));
-    const row = el("div", "btns"), ready = GTCON.cardReady(cardsShown[c.request_id], now), locked = !!cardLocked[c.request_id];
+    const held = PHONE.heldWhy(last), blocked = () => !!cardLocked[c.request_id] || !!PHONE.heldWhy(last);
+    const row = el("div", "btns"), ready = GTCON.cardReady(cardsShown[c.request_id], now), locked = !!cardLocked[c.request_id] || !!held;
     const body = { session: s.id, request_id: c.request_id, action_hash: c.action_hash };
     const deny = el("button", w.primary === "deny" ? "primary" : "danger", asking ? "Decline" : "Deny"); deny.type = "button";
     deny.disabled = !ready || locked;
-    deny.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id]) return; cardLocked[c.request_id] = true; act("deny", body, null); renderCards(); };
+    deny.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || blocked()) return; cardLocked[c.request_id] = true; act("deny", body, null); renderCards(); };
     row.appendChild(deny);
     if (asking) {
       const done = c.questions.every(q => (picks[q.question] || []).length > 0);
       const send = el("button", "primary", "Send answer"); send.type = "button";
       send.disabled = !ready || locked || !done;
       send.onclick = () => {
-        if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id] || !done) return;
+        if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || blocked() || !done) return;
         const answers = {};
         c.questions.forEach(q => { const p = picks[q.question] || []; answers[q.question] = q.multiSelect ? p : p[0]; });
         cardLocked[c.request_id] = true; act("answer", Object.assign({}, body, { answers: answers }), null); renderCards();
@@ -1353,14 +1462,76 @@ function renderCards() {
     } else if (w.allow) {
       const allow = el("button", w.primary === "allow" ? "primary" : "", "Allow once"); allow.type = "button";
       allow.disabled = !ready || locked;
-      allow.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || cardLocked[c.request_id]) return; cardLocked[c.request_id] = true; act("approve", body, null); renderCards(); };
+      allow.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || blocked()) return; cardLocked[c.request_id] = true; act("approve", body, null); renderCards(); };
       row.appendChild(allow);
     }
     n.appendChild(row);
     if (!w.allow) n.appendChild(el("div", "why", "Answer it at the Mac to allow: " + w.why));
-    if (locked) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
+    if (held) n.appendChild(el("div", "why", held));
+    else if (locked) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
     box.appendChild(n);
   });
+}
+// gt is TRIPPED and a signed phone restore may clear it (the feed's `integrity` block; design 27 T11). The request is
+// signed with this phone's key and names the exact trip id and record digest shown, so it cannot clear a later trip.
+// Every feed string here is shown with textContent only (el()): the problem lines are file names, untrusted.
+function renderIntegrity() {
+  const box = $("integrity"); clear(box);
+  const g = viewing ? null : PHONE.integrityCard(last);
+  if (!g) { if (!(last && last.integrity && last.integrity.state === "TRIPPED")) restoreSent = ""; return; }
+  const n = el("div", "card");
+  n.setAttribute("role", "group"); n.setAttribute("aria-label", "gt integrity: tripped");
+  n.appendChild(el("h3", null, "gt is tripped: its files do not match the sealed record"));
+  n.appendChild(el("div", "why", "Trip " + g.trip + " · " + g.count + (g.count === 1 ? " problem" : " problems") +
+                   (g.count > g.problems.length ? " (the first " + g.problems.length + " shown)" : "")));
+  if (g.problems.length) n.appendChild(el("div", "what", g.problems.join("\n")));
+  n.appendChild(el("div", "why", "Restore puts the listed files back from the Mac's local spare copies of the sealed bytes and " +
+                   "moves added files to quarantine. Nothing is accepted as changed. The Mac refuses if it cannot restore all " +
+                   "of them, and then nothing changes. Once they verify, the trip is cleared and journaled as this phone's."));
+  const row = el("div", "btns"), b = el("button", "danger", "Restore gt's files"); b.type = "button";
+  b.disabled = restoreSent === g.trip;
+  b.onclick = () => {
+    if (restoreSent === g.trip) return;
+    if (!confirm("Restore gt's files to the sealed copies and clear trip " + g.trip + "? Changed files are not kept as they are.")) return;
+    restoreSent = g.trip; restoreAnswer = ""; renderIntegrity();
+    boundSend("integrity_restore", { trip_id: g.trip, digest: g.digest }, b, () => restoreSent === g.trip,
+              why => { restoreSent = ""; restoreAnswer = why; renderIntegrity(); });
+  };
+  row.appendChild(b); n.appendChild(row);
+  if (restoreSent === g.trip) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
+  else if (restoreAnswer) n.appendChild(el("div", "why", restoreAnswer));
+  box.appendChild(n);
+}
+// gt's command journal was cut (the feed's `journal` block): the one presence-gated gt action this phone may do.
+// The request is signed with this phone's key and names the exact head shown here, so it cannot bless a later cut.
+function renderJournal() {
+  const box = $("journal"); clear(box);
+  const j = last && last.journal;
+  if (viewing || !j || j.cut !== true || typeof j.count !== "number" || !/^[0-9a-f]{64}$/.test(String(j.head || ""))) return;
+  const n = el("div", "card"), key = j.count + ":" + j.head;
+  n.setAttribute("role", "group"); n.setAttribute("aria-label", "Command journal cut");
+  n.appendChild(el("h3", null, "gt's command journal was cut"));
+  n.appendChild(el("div", "what", String(j.why || "")));
+  n.appendChild(el("div", "why", "Now: " + j.count + " records, newest " + j.head.slice(0, 12) + "\u2026"));
+  if (j.chain_ok !== true) {
+    n.appendChild(el("div", "why", "Its chain is broken too: that is looked at and fixed at the Mac (gt_exec_audit.py verify)."));
+    box.appendChild(n); return;
+  }
+  n.appendChild(el("div", "why", "Accept it only if you know why records went missing (a restore, a cleanup). The Mac re-anchors " +
+                   "at exactly this head and journals that this phone accepted it."));
+  const row = el("div", "btns"), b = el("button", "danger", "Accept this journal"); b.type = "button";
+  b.disabled = journalSent === key;
+  b.onclick = () => {
+    if (journalSent === key) return;
+    if (!confirm("Accept gt's command journal as it is now (" + j.count + " records)? Records already missing stay missing.")) return;
+    journalSent = key; journalAnswer = ""; renderJournal();
+    boundSend("accept_audit_cut", { count: j.count, head: j.head }, b, () => journalSent === key,
+              why => { journalSent = ""; journalAnswer = why; renderJournal(); });
+  };
+  row.appendChild(b); n.appendChild(row);
+  if (journalSent === key) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
+  else if (journalAnswer) n.appendChild(el("div", "why", journalAnswer));
+  box.appendChild(n);
 }
 function renderChips() {
   const box = $("chips"); clear(box);
@@ -1379,6 +1550,11 @@ function renderConn(err) {
     const age = nowS - last.at, name = (last.mac && last.mac.name) || "the Mac";
     words = (age < 360 ? "Connected to " : "Mac not seen recently: ") + name + " · seen " + PHONE.ago(age);
     if (age >= 360) cls = "warn";
+    if (last.mac && last.mac.locked === true) {
+      const lk = el("span", "chip bad", "LOCKED"); lk.title = String(last.mac.locked_why || "");
+      words += " · locked: " + String(last.mac.locked_why || "this Mac runs nothing until the owner clears the lock");
+      cls = "bad"; c.className = cls; c.appendChild(lk);
+    }
   }
   if (rate.left !== null && rate.left < 100) { words += " · GitHub requests left this hour: " + rate.left; cls = cls || "warn"; }
   c.className = cls;
@@ -1434,6 +1610,8 @@ function renderAcks() {
     delete sent[a.id];
     if (s.type === "prompt") { const o = outbox.filter(x => x.id === a.id)[0]; if (o) { o.state = a.ok ? "delivered" : "refused"; o.why = a.message; } }
     if (s.type === "approve" || s.type === "deny") delete cardLocked[s.request_id];
+    if (s.type === "accept_audit_cut") { journalSent = ""; journalAnswer = ""; }
+    if (s.type === "integrity_restore") { restoreSent = ""; restoreAnswer = PHONE.restoreWords(a); say("note", restoreAnswer); return; }
     if (s.type !== "prompt" || !a.ok) say("note", PHONE.ackWords(s.type, a));
   });
 }
@@ -1473,6 +1651,8 @@ function renderAll() {
   renderViewing();
   renderLog(currentEvents(), currentOpen());
   renderOutbox();
+  renderIntegrity();
+  renderJournal();
   renderCards();
   renderActivity();
   renderSugg();
@@ -1515,7 +1695,7 @@ function openSessions() {
     btn.onclick = () => {
       closeSheet();
       if (r.promptable) { viewing = null; viewDoc = null; }
-      else { viewing = r.sid; viewDoc = null; act("view", { session: r.sid }, null); }
+      else { viewing = r.sid; viewDoc = null; askView(r.sid); }
       rowsSeen = {}; renderAll();
     };
     b.appendChild(btn);
@@ -1524,12 +1704,22 @@ function openSessions() {
   if (s) {
     b.appendChild(el("h3", null, "This session"));
     const full = el("button", "srow", "Open its full record (read only)"); full.type = "button";
-    full.onclick = () => { closeSheet(); viewing = s.id; viewDoc = null; act("view", { session: s.id }, null); rowsSeen = {}; renderAll(); };
+    full.onclick = () => { closeSheet(); viewing = s.id; viewDoc = null; askView(s.id); rowsSeen = {}; renderAll(); };
     const intr = el("button", "srow", "Interrupt the running turn"); intr.type = "button";
     intr.onclick = () => { closeSheet(); act("interrupt", { session: s.id }, null); };
     const stop = el("button", "srow danger", "Stop this session"); stop.type = "button";
     stop.onclick = () => { if (!prefs.confirmStop || confirm("Stop the session at the Mac? Its open approvals are denied.")) { closeSheet(); act("stop", { session: s.id }, null); } };
     [full, intr, stop].forEach(x => b.appendChild(x));
+  }
+  const mc = last && last.mc;                       // gt's run window: status only (D2 P6)
+  if (mc && mc.open) {
+    b.appendChild(el("h3", null, "Run window"));
+    b.appendChild(el("p", "muted", "Open until " + GTCON.clock(mc.ends_at) + ": runs " + mc.runs_used + " of " + mc.runs + "."));
+    if (can("window_close")) {
+      const wc = el("button", "srow danger", "Close the run window"); wc.type = "button";
+      wc.onclick = () => { if (confirm("Close the run window? Every worker stops.")) { closeSheet(); act("window_close", {}, null); } };
+      b.appendChild(wc);
+    }
   }
 }
 const SETTINGS = [
@@ -1588,7 +1778,9 @@ function macControl(key, label, set) {
   const opts = PHONE.MAC_SETTABLE[key];
   Object.keys(opts).forEach(v => { const o = el("option", null, opts[v]); o.value = v; c.appendChild(o); });
   c.value = PHONE.macSettingNow(key, set);
+  c.disabled = !!PHONE.heldWhy(last);
   c.onchange = () => {
+    if (PHONE.heldWhy(last)) { say("note", label + ": " + PHONE.heldWhy(last)); c.value = PHONE.macSettingNow(key, last && last.settings); return; }
     const why = PHONE.macSettingWhy(key, c.value, last && last.settings);
     if (why) { say("note", label + ": " + why); c.value = PHONE.macSettingNow(key, last && last.settings); return; }
     act("setting", { key: key, value: c.value }, null);
@@ -1604,6 +1796,7 @@ function openSettings(refresh) {
   SETTINGS.forEach(s => { if (s.length === 1) b.appendChild(el("h3", null, s[0])); else b.appendChild(control(s[0], s[1], s[2], s[3])); });
   const nowS = Date.now() / 1000, st = last || {}, mac = st.mac || {}, set = st.settings || {};
   b.appendChild(el("h3", null, "The Mac (read only)"));
+  if (PHONE.heldWhy(st)) b.appendChild(el("p", "muted", PHONE.heldWhy(st)));
   b.appendChild(ro("Paired Mac", mac.name || "not seen yet"));
   b.appendChild(ro("Relay", last ? "on · feed written " + PHONE.ago(nowS - st.at) : "no feed yet"));
   b.appendChild(ro("This phone seen by the Mac", st.phone_seen ? PHONE.ago(nowS - st.phone_seen) : "not yet"));
@@ -1704,7 +1897,7 @@ async function main() {
   $("input").value = store.get("draft") || "";
   const cached = store.get("sealed");                 // the last feed, still sealed: opens with K or not at all
   if (cached) {
-    try { const st = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, OUT, enc.encode(cached)))); if (PHONE.feedOk(st)) last = st; } catch (e) { store.del("sealed"); }
+    try { const st = JSON.parse(dec.decode(await unseal(K, "m2p", cfg.pair, outPath(), enc.encode(cached)))); if (PHONE.feedOk(st) && st.expired !== true) last = st; } catch (e) { store.del("sealed"); }
   }
   renderAll();
   hello(true);
