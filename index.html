@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nyedQ1j7eXNG4cF/B2vtXpqJmJo1SEbg9pj+n7ePR6g='; style-src 'sha256-xL1B/KIycxRmEp0VaUVoGFyye0nAqULPegUb7r+bKYo='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nvIfT9KJ6LnE8CXfmSiujsnLPfV7KvGdiJrZ4I+L0pA='; style-src 'sha256-tou+gk/hAg+rCCbh+/3faad0au7RSkVJmvS2VKAFBoI='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -56,6 +56,11 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
 .chip.ok { color: var(--ok); border-color: var(--ok); }
 #conn { font-size: 0.78em; color: var(--muted); padding: 3px 12px; display: flex; gap: 8px; align-items: center;
   justify-content: center; flex-wrap: wrap; }
+#alerts { font-size: 0.85em; border-bottom: 1px solid var(--line); }
+#alerts .alert { display: flex; gap: 8px; align-items: center; padding: 4px 12px; }
+#alerts .alert .t { flex: 1 1 auto; min-width: 0; }
+#alerts .alert.warn { color: var(--warn); }
+#alerts .alert button { min-height: 32px; min-width: 32px; padding: 2px 10px; }
 #conn.bad { color: var(--bad); }
 #conn.warn { color: var(--warn); }
 #viewing { font-size: 0.85em; background: var(--card); border-bottom: 1px solid var(--line); padding: 6px 12px;
@@ -157,6 +162,7 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
     <button id="b-settings" class="icon" type="button" aria-label="Settings">&#8943;</button>
   </header>
   <div id="conn" role="status"></div>
+  <div id="alerts" role="status" hidden></div>
   <div id="viewing" hidden></div>
   <main id="scroll">
     <div id="ptr" aria-hidden="true"></div>
@@ -890,7 +896,9 @@ var PHONE = (function () {
   function sessions(st, ended, nowMs) {
     var list = (st && st.sessions) || [], live = {};
     list.forEach(function (r) { if (r && r.live) { live[r.session_id] = true; } });
-    var rs = GTCON.historyRows(list, [], "", [], nowMs).map(function (r) { r.promptable = !!live[r.sid]; return r; });
+    var stat = {};
+    list.forEach(function (r) { if (r && typeof r.status === "string") { stat[r.session_id] = r.status; } });
+    var rs = GTCON.historyRows(list, [], "", [], nowMs).map(function (r) { r.promptable = !!live[r.sid]; r.status = stat[r.sid] || ""; return r; });
     rs = rs.filter(function (r) { return ended || r.live; });
     rs.sort(function (a, b) { return (b.promptable ? 1 : 0) - (a.promptable ? 1 : 0); });
     return rs;
@@ -1626,6 +1634,34 @@ function renderAcks() {
     if (s.type !== "prompt" || !a.ok) say("note", PHONE.ackWords(s.type, a));
   });
 }
+// The Mac's alerts (feed `alerts`: fixed text, rising ids): the newest three not dismissed here, a buzz for a new one that needs
+// you. Dismissals are kept on this phone only. The first feed read never buzzes for what was already there.
+let alertTop = null;
+function alertsGone() { try { const g = JSON.parse(store.get("alertsGone") || "[]"); return Array.isArray(g) ? g : []; } catch (e) { return []; } }
+function renderAlerts() {
+  const box = $("alerts"); clear(box);
+  const list = (last && Array.isArray(last.alerts) ? last.alerts : []).filter(a => a && Number.isInteger(a.id) && typeof a.text === "string");
+  const top = list.reduce((m, a) => Math.max(m, a.id), 0);
+  if (alertTop !== null && top > alertTop) {
+    const fresh = list.filter(a => a.id > alertTop && (a.kind === "needs-you" || a.kind === "failed"));
+    if (fresh.length) {
+      if (prefs.haptics && navigator.vibrate) { try { navigator.vibrate([20, 60, 20]); } catch (e) {} }
+      if (prefs.sound) beep();
+    }
+  }
+  alertTop = Math.max(alertTop || 0, top);
+  const gone = alertsGone();
+  const shown = list.filter(a => gone.indexOf(a.id) < 0).slice(-3).reverse();
+  box.hidden = !shown.length;
+  shown.forEach(a => {
+    const row = el("div", "alert" + (a.kind === "needs-you" || a.kind === "failed" || a.kind === "stuck" ? " warn" : ""));
+    row.appendChild(el("span", "t", a.text + (typeof a.at === "number" ? " · " + PHONE.ago(Date.now() / 1000 - a.at) : "")));
+    const x = el("button", null, "Dismiss"); x.type = "button";
+    x.onclick = () => { store.set("alertsGone", JSON.stringify(alertsGone().concat([a.id]).slice(-60))); renderAlerts(); };
+    row.appendChild(x);
+    box.appendChild(row);
+  });
+}
 function notifyTurn() {
   const s = last && last.session, state = s ? s.state : "";
   if (turnWas && turnWas !== "idle" && state === "idle") {
@@ -1658,6 +1694,7 @@ function followBottom() {
 function renderAll() {
   renderAcks();
   renderConn();
+  renderAlerts();
   renderChips();
   renderViewing();
   renderLog(currentEvents(), currentOpen());
@@ -1702,7 +1739,7 @@ function openSessions() {
   rows.forEach(r => {
     const btn = el("button", "srow" + (r.promptable ? " live" : "")); btn.type = "button";
     btn.appendChild(el("span", null, r.prompt || r.label));
-    btn.appendChild(el("span", "sub", [r.promptable ? "live: prompts go here" : r.stateWord, r.model, r.live ? "started " + r.started : "ended " + (r.ended || r.started)].filter(Boolean).join(" · ")));
+    btn.appendChild(el("span", "sub", [r.promptable ? "live: prompts go here" : r.stateWord, r.status, r.model, r.live ? "started " + r.started : "ended " + (r.ended || r.started)].filter(Boolean).join(" · ")));
     btn.onclick = () => {
       closeSheet();
       if (r.promptable) { viewing = null; viewDoc = null; }
