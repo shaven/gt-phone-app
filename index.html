@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ZRi+eCfMg4DhCyrgkmSU/DQ/Ey7UeKAG6tmEqbIOJLs='; style-src 'sha256-LS4o++PB271G18sJoRDJOYfutgyKP1dvk1phz/m/7bQ='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-n6alQQpAXEvG/lxcspXlN0Pr/7AT+iMeu9MfVAkTOfg='; style-src 'sha256-LS4o++PB271G18sJoRDJOYfutgyKP1dvk1phz/m/7bQ='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -189,6 +189,7 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
     <p>Type this code at the Mac:</p>
     <div class="code6" id="pair-code"></div>
   </div>
+  <p id="pair-next" hidden><button id="pair-continue" class="primary" type="button">I typed the code: continue</button></p>
   <p class="muted" id="pair-msg"></p>
 </section>
 <section id="unpaired" class="page" hidden>
@@ -1180,7 +1181,9 @@ async function startPairing(frag) {
       store.set("cfg", JSON.stringify(cfg));
       say("pair-code", code.slice(0, 3) + " " + code.slice(3));
       $("pair-code-box").hidden = false;
-      say("pair-msg", "Sent. Type the code at the Mac, then reload this page.");
+      say("pair-msg", "Sent. Type the code at the Mac, then press Continue.");
+      $("pair-next").hidden = false;
+      $("pair-continue").onclick = () => { location.reload(); };
     } catch (e) {
       say("pair-msg", "Pairing failed: " + e.message);
       $("pair-go").disabled = false;
