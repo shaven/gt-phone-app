@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-n6alQQpAXEvG/lxcspXlN0Pr/7AT+iMeu9MfVAkTOfg='; style-src 'sha256-LS4o++PB271G18sJoRDJOYfutgyKP1dvk1phz/m/7bQ='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-n6alQQpAXEvG/lxcspXlN0Pr/7AT+iMeu9MfVAkTOfg='; style-src 'sha256-xL1B/KIycxRmEp0VaUVoGFyye0nAqULPegUb7r+bKYo='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -31,6 +31,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
 body { font: var(--fs)/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden;
   -webkit-text-size-adjust: 100%; }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* iPhone Safari zooms the whole page when a field under 16px is tapped (owner, 2026-11-19): fields are never smaller */
+input, select, textarea { font-size: max(16px, 1em); }
 button { min-height: 44px; min-width: 44px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line);
   background: var(--card); cursor: pointer; }
 button:disabled { opacity: 0.45; cursor: default; }
@@ -116,7 +118,7 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
 .sugg button { flex: 0 0 auto; min-height: 36px; padding: 4px 12px; border-radius: 999px; font-size: 0.85em; }
 #composer { display: flex; gap: 8px; align-items: flex-end; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line); }
-#input { flex: 1 1 auto; resize: none; max-height: 40vh; min-height: 44px; padding: 10px 14px; border-radius: 22px;
+#input { flex: 1 1 auto; min-width: 0; resize: none; max-height: 40vh; min-height: 44px; padding: 10px 14px; border-radius: 22px;
   border: 1px solid var(--line); background: var(--card); }
 #send { border-radius: 999px; width: 44px; padding: 0; font-size: 1.2em; }
 #note { font-size: 0.8em; color: var(--warn); padding: 0 16px; }
