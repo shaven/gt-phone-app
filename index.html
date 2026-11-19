@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dLy4WvTtr/30yz/6tAFIimHywIl3EOA+1v9IpPK8SnI='; style-src 'sha256-xL1B/KIycxRmEp0VaUVoGFyye0nAqULPegUb7r+bKYo='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nyedQ1j7eXNG4cF/B2vtXpqJmJo1SEbg9pj+n7ePR6g='; style-src 'sha256-xL1B/KIycxRmEp0VaUVoGFyye0nAqULPegUb7r+bKYo='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -1477,7 +1477,7 @@ function renderCards() {
       row.appendChild(allow);
     }
     n.appendChild(row);
-    if (!w.allow) n.appendChild(el("div", "why", /^protected/.test(String(w.why || "")) ? "Denied: " + w.why : "Answer it at the Mac to allow: " + w.why));
+    if (!w.allow) n.appendChild(el("div", "why", /^protected/.test(String(w.why || "")) ? "Only the Mac can allow this one (" + (/^protected \(([^)]*)\)/.exec(w.why) || ["", "a protected place"])[1] + "). Allow it there, or turn on the Mac's \"Let the phone allow protected requests\" button." : "Answer it at the Mac to allow: " + w.why));
     if (held) n.appendChild(el("div", "why", held));
     else if (locked) n.appendChild(el("div", "why", "Sent: waiting for the Mac."));
     box.appendChild(n);
