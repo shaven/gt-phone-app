@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#1a1a1c" media="(prefers-color-scheme: dark)">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Qv8zQgykOE4oxo4W+xt2iOThnxOsHHJ9COUHOInUdrw='; style-src 'sha256-/zircLTrxdTgzC8hyDBPALA6oxNuCgHmTy3hF+yecrI='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6rlKo5+WhfecF8rZKKCyNb3xrNtdbsLHg8jTVdt3b/k='; style-src 'sha256-PURJj30cbfousRnhk7jnZp6aorJ6899FEmXvc+0KgIk='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -160,6 +160,10 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
 .ro span:last-child { color: var(--muted); text-align: right; }
 .page { max-width: 40rem; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px 32px; overflow-y: auto; height: 100%; }
 .page input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); }
+.sheet input, .sheet select, .sheet textarea { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); box-sizing: border-box; }
+.sheet textarea { min-height: 96px; }
+.sheet label { display: block; margin: 12px 0 4px; font-size: 0.9em; }
+#sheet-note { font-size: 0.9em; color: var(--warn); margin: 8px 0; }
 .page label { display: block; margin: 12px 0 4px; font-size: 0.9em; }
 .code6 { font-family: ui-monospace, Menlo, monospace; font-size: 2rem; letter-spacing: 0.2em; text-align: center; margin: 12px 0; }
 .muted { color: var(--muted); font-size: 0.9em; }
@@ -1141,7 +1145,10 @@ function el(tag, cls, text) {
   return e;
 }
 function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
-function say(id, text) { $(id).textContent = text || ""; }
+function say(id, text) {
+  $(id).textContent = text || "";
+  if (id === "note") { const sn = document.getElementById("sheet-note"); if (sn) sn.textContent = text || ""; }   // the open sheet covers #note
+}
 function announce(text) { say("announce", ""); setTimeout(() => say("announce", text), 50); }
 
 // ---- settings kept in this phone
@@ -1861,6 +1868,7 @@ function openStart() {
   b.appendChild(fs);
   const tl = el("label", null, "First message"); tl.setAttribute("for", "start-text"); b.appendChild(tl);
   const ta = el("textarea"); ta.id = "start-text"; ta.rows = 3; ta.maxLength = PHONE.MAX_PROMPT; b.appendChild(ta);
+  const sn = el("p"); sn.id = "sheet-note"; sn.setAttribute("role", "alert"); b.appendChild(sn);
   const go = el("button", "primary", "Start session"); go.type = "button";
   go.onclick = async () => {
     const why = PHONE.startCheck(sh, ms.value, fs.value, ta.value);
