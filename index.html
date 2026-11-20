@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#1a1a1c" media="(prefers-color-scheme: dark)">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-o8iQi7lTSNHC+YI9MWQXOiW0c/eQDIFd1U9kU7idwY0='; style-src 'sha256-/zircLTrxdTgzC8hyDBPALA6oxNuCgHmTy3hF+yecrI='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Qv8zQgykOE4oxo4W+xt2iOThnxOsHHJ9COUHOInUdrw='; style-src 'sha256-/zircLTrxdTgzC8hyDBPALA6oxNuCgHmTy3hF+yecrI='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -918,7 +918,7 @@ var PHONE = (function () {
   // What each scope lets this phone send (gt_phone_relay.SCOPES): the Mac checks again, this only shows early.
   var SCOPE_TYPES = { watch: ["hello", "view", "focus"],
                       approve: ["approve", "deny", "answer", "stop", "interrupt", "accept_audit_cut", "window_close", "integrity_restore"],
-                      approve_effects: ["access_decide"], grant_watch: ["follow"], dispatch: ["prompt", "setting"] };
+                      approve_effects: ["access_decide"], grant_watch: ["follow"], dispatch: ["prompt", "setting", "start", "engine", "engine_run"] };
   // May a phone paired with `scopes` send `type`? Unknown scopes (an older feed): yes, the Mac decides.
   function scopeAllows(scopes, type) {
     if (!Array.isArray(scopes)) { return true; }
@@ -957,10 +957,38 @@ var PHONE = (function () {
     if (/[\x00-\x08\x0b-\x1f\x7f]/.test(t)) { return "a prompt may not hold control characters"; }
     return null;
   }
+  // The New session sheet (design 21): what the feed's `start` block offers, or why it does not. The Mac checks everything
+  // again (switch, lists, folder, limits); this only shows early.
+  function startSheet(st) {
+    var b = st && st.start, models, left, i;
+    if (!b || b.on !== true) { return { ok: false, why: "Starting a session from the phone is off. Turn it on at the Mac: gt_settings.py set ui_phone_start on." }; }
+    if (st.client && !scopeAllows(st.client.scopes, "start")) { return { ok: false, why: "This phone was paired without the right to start sessions (pair it again at the Mac with dispatch)." }; }
+    models = (Array.isArray(b.models) ? b.models : []).filter(function (m) { return m && typeof m.id === "string" && m.id.length > 0 && m.id.length <= 80; })
+      .slice(0, 8).map(function (m) { return { id: m.id, label: String(m.label || m.id).slice(0, 80), up: m.up === true ? true : (m.up === false ? false : null) }; });
+    if (!models.length) { return { ok: false, why: "The Mac lists no model for the phone: add one to the engine table (phone_start)." }; }
+    left = b.left || {};
+    if (!(left.live > 0)) { return { ok: false, why: "The limit of 4 phone-started sessions is reached: stop one first." }; }
+    if (!(left.hour > 0)) { return { ok: false, why: "The limit of 6 starts an hour is used up: try again later." }; }
+    return { ok: true, models: models, left: { live: left.live, hour: left.hour },
+             folders: (Array.isArray(b.folders) ? b.folders : []).filter(function (f) { return f && typeof f.path === "string" && f.path.length <= 500; })
+               .slice(0, 8).map(function (f) { return { path: f.path, name: String(f.name || f.path).slice(0, 60) }; }),
+             engines: (Array.isArray(b.engines) ? b.engines : []).filter(function (e) { return e && typeof e.engine === "string"; }).slice(0, 12)
+               .map(function (e) { return { engine: e.engine.slice(0, 64), up: e.up === true, verbs: (Array.isArray(e.verbs) ? e.verbs : []).filter(function (v) { return v === "boot" || v === "stop" || v === "swap"; }) }; }) };
+  }
+  // -> "" when this model, folder and first message may be sent, else why not.
+  function startCheck(sheet, model, folder, text) {
+    var t = String(text || ""), why;
+    if (!sheet || !sheet.ok) { return "Starting a session is not available."; }
+    if (!sheet.models.some(function (m) { return m.id === model; })) { return "Pick a model from the list."; }
+    if (folder !== "new" && !sheet.folders.some(function (f) { return f.path === folder; })) { return "Pick a folder from the list."; }
+    if (!t.trim()) { return "Write a first message for the new session."; }
+    why = promptCheck(t);
+    return why ? why.charAt(0).toUpperCase() + why.slice(1) + "." : "";
+  }
   // A request's answer from the Mac, in words.
   var SENT_WORDS = { prompt: "Prompt", approve: "Allow once", deny: "Deny", stop: "Stop", interrupt: "Interrupt", view: "Session view",
                      setting: "Mac setting", accept_audit_cut: "Accept the journal cut", integrity_restore: "Restore gt's files",
-                     window_close: "Close the run window" };
+                     window_close: "Close the run window", start: "New session", engine: "Mac engine request", engine_run: "Mac engine" };
   // The two Mac settings this phone may change (gt_phone_relay.PHONE_SETTABLE) and their only values; the Mac
   // checks the same list again and refuses anything else. Every other Mac setting is changed at the Mac.
   var MAC_SETTABLE = { ui_card_default: { allow: "Allow once", deny: "Deny" },
@@ -1051,7 +1079,7 @@ var PHONE = (function () {
            chips: chips, sessions: sessions, composerWhy: composerWhy, promptCheck: promptCheck, ackWords: ackWords,
            auditWords: auditWords, MAC_SETTABLE: MAC_SETTABLE, macSettingWhy: macSettingWhy, macSettingNow: macSettingNow,
            heldWhy: heldWhy, integrityCard: integrityCard, restoreWords: restoreWords, SCOPE_TYPES: SCOPE_TYPES,
-           scopeAllows: scopeAllows, viewMerge: viewMerge };
+           scopeAllows: scopeAllows, viewMerge: viewMerge, startSheet: startSheet, startCheck: startCheck };
 })();
 /* gt-phone-pure:end */
 
@@ -1089,6 +1117,7 @@ let viewCache = {}, retryQ = [];      // the views held per session (a cursor); 
 let sent = {}, outbox = [], etag = "", rate = { left: null, waitUntil: 0 }, timer = null, lastHello = 0, lastChange = Date.now();
 let rowsSeen = {}, ansOpen = {}, cardsShown = {}, cardLocked = {}, cardPicks = {}, wake = null, turnWas = "", sheetOpen = "";
 let reveal = {}, revealTimer = null;
+let pendingFocus = "";                 // the first 8 characters of a session this phone just started: focus it once it is live
 let journalSent = "";                // "count:head" of an accept_audit_cut sent and not yet answered
 let restoreSent = "", restoreAnswer = "";   // the trip id of an integrity_restore sent and not yet answered; the last answer
 let journalAnswer = "";              // why the last accept_audit_cut came to nothing (not sent, or expired unanswered)
@@ -1646,6 +1675,7 @@ function renderAcks() {
     delete sent[a.id];
     if (s.type === "prompt") { const o = outbox.filter(x => x.id === a.id)[0]; if (o) { o.state = a.ok ? "delivered" : "refused"; o.why = a.message; } }
     if (s.type === "approve" || s.type === "deny") delete cardLocked[s.request_id];
+    if (s.type === "start" && a.ok) { const m = /\(([0-9a-f]{8})\)/.exec(String(a.message || "")); if (m) pendingFocus = m[1]; }
     if (s.type === "accept_audit_cut") { journalSent = ""; journalAnswer = ""; }
     if (s.type === "integrity_restore") { restoreSent = ""; restoreAnswer = PHONE.restoreWords(a); say("note", restoreAnswer); return; }
     if (s.type !== "prompt" || !a.ok) say("note", PHONE.ackWords(s.type, a));
@@ -1658,6 +1688,10 @@ function renderAcks() {
 function renderSessbar() {
   const box = $("sessbar"); clear(box);
   const live = (last && Array.isArray(last.sessions) ? last.sessions : []).filter(r => r && r.live);
+  if (pendingFocus) {
+    const hit = live.filter(r => String(r.session_id || "").indexOf(pendingFocus) === 0)[0];
+    if (hit) { pendingFocus = ""; if (!(last.session && last.session.id === hit.session_id)) act("focus", { session: hit.session_id }, null); }
+  }
   box.hidden = viewing || live.length < 2;
   if (box.hidden) return;
   live.forEach((r, i) => {
@@ -1782,6 +1816,12 @@ function openSessions() {
     };
     b.appendChild(btn);
   });
+  const sh = PHONE.startSheet(last);
+  if (sh.ok) {
+    const nb = el("button", "srow", "New session"); nb.type = "button"; nb.onclick = openStart; b.appendChild(nb);
+  } else {
+    b.appendChild(el("p", "muted", sh.why));
+  }
   const s = last && last.session;
   if (s) {
     b.appendChild(el("h3", null, "This session"));
@@ -1803,6 +1843,53 @@ function openSessions() {
       b.appendChild(wc);
     }
   }
+}
+function openStart() {
+  openSheet("start", "New session");
+  const b = $("sheet-body"); clear(b);
+  const sh = PHONE.startSheet(last);
+  if (!sh.ok) { b.appendChild(el("p", "muted", sh.why)); return; }
+  b.appendChild(el("p", "muted", "Starts in Ask, in its own folder, with the usual spend cap. " + sh.left.live + " more may be open; " + sh.left.hour + " starts left this hour."));
+  const ml = el("label", null, "Model"); ml.setAttribute("for", "start-model"); b.appendChild(ml);
+  const ms = el("select"); ms.id = "start-model";
+  sh.models.forEach(m => { const o = el("option", null, m.label + (m.up === false ? " (the Mac will start it)" : "")); o.value = m.id; ms.appendChild(o); });
+  b.appendChild(ms);
+  const fl = el("label", null, "Folder"); fl.setAttribute("for", "start-folder"); b.appendChild(fl);
+  const fs = el("select"); fs.id = "start-folder";
+  const o0 = el("option", null, "A new empty folder"); o0.value = "new"; fs.appendChild(o0);
+  sh.folders.forEach(f => { const o = el("option", null, f.name); o.value = f.path; fs.appendChild(o); });
+  b.appendChild(fs);
+  const tl = el("label", null, "First message"); tl.setAttribute("for", "start-text"); b.appendChild(tl);
+  const ta = el("textarea"); ta.id = "start-text"; ta.rows = 3; ta.maxLength = PHONE.MAX_PROMPT; b.appendChild(ta);
+  const go = el("button", "primary", "Start session"); go.type = "button";
+  go.onclick = async () => {
+    const why = PHONE.startCheck(sh, ms.value, fs.value, ta.value);
+    if (why) { say("note", why); return; }
+    const text = PHONE.canonical(PHONE.cmdList(last), ta.value);
+    const id = await act("start", { model: ms.value, folder: fs.value, text: text }, go);
+    if (id) closeSheet();
+  };
+  b.appendChild(go);
+  if (sh.engines.length) {
+    b.appendChild(el("h3", null, "Models on the Mac"));
+    sh.engines.forEach(e => {
+      b.appendChild(el("p", "muted", e.engine + ": " + (e.up ? "running" : "stopped")));
+      e.verbs.forEach(v => {
+        if (v === "swap") return;
+        const eb = el("button", "srow" + (v === "stop" ? " danger" : ""), (v === "boot" ? "Start " : "Stop ") + e.engine); eb.type = "button";
+        eb.onclick = () => {
+          if (v === "stop" && !confirm("Stop " + e.engine + " at the Mac? Sessions using it would lose their model.")) return;
+          closeSheet(); act("engine_run", { verb: v, engine: e.engine }, null);
+        };
+        b.appendChild(eb);
+      });
+    });
+  }
+  const el2 = el("label", null, "Ask the Mac (for example: start the big model)"); el2.setAttribute("for", "engine-text"); b.appendChild(el2);
+  const et = el("input"); et.id = "engine-text"; et.maxLength = 500; b.appendChild(et);
+  const ask = el("button", "srow", "Ask the Mac"); ask.type = "button";
+  ask.onclick = () => { const q = et.value.trim(); if (!q) { say("note", "Write what you want done with the models."); return; } closeSheet(); act("engine", { text: q }, null); };
+  b.appendChild(ask);
 }
 const SETTINGS = [
   ["Display"],
