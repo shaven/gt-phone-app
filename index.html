@@ -11,7 +11,7 @@
 <meta name="theme-color" content="#1a1a1c" media="(prefers-color-scheme: dark)">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nvIfT9KJ6LnE8CXfmSiujsnLPfV7KvGdiJrZ4I+L0pA='; style-src 'sha256-tou+gk/hAg+rCCbh+/3faad0au7RSkVJmvS2VKAFBoI='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-o8iQi7lTSNHC+YI9MWQXOiW0c/eQDIFd1U9kU7idwY0='; style-src 'sha256-/zircLTrxdTgzC8hyDBPALA6oxNuCgHmTy3hF+yecrI='; connect-src https://api.github.com; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>gt phone</title>
 <!-- Static and host-neutral: publish it as is (a public GitHub Pages repository of its own will do). It holds no
      repository name, token or key; the pairing link brings them. A GitHub Enterprise API base (the pairing's "a")
@@ -62,6 +62,11 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
 .chip.ok { color: var(--ok); border-color: var(--ok); }
 #conn { font-size: 0.78em; color: var(--muted); padding: 3px 12px; display: flex; gap: 8px; align-items: center;
   justify-content: center; flex-wrap: wrap; }
+#sessbar { display: flex; gap: 6px; overflow-x: auto; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+#sessbar button { flex: 0 0 auto; min-height: 36px; padding: 4px 12px; border-radius: 999px; font-size: 0.85em; max-width: 14em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sessbar button[aria-selected="true"] { border-color: var(--accent); font-weight: 700; }
+#sessbar .dot { color: var(--warn); }
 #alerts { font-size: 0.85em; border-bottom: 1px solid var(--line); }
 #alerts .alert { display: flex; gap: 8px; align-items: center; padding: 4px 12px; }
 #alerts .alert .t { flex: 1 1 auto; min-width: 0; }
@@ -169,6 +174,7 @@ button.icon { border: 0; background: none; font-size: 1.3em; padding: 4px; }
   </header>
   <div id="conn" role="status"></div>
   <div id="alerts" role="status" hidden></div>
+  <div id="sessbar" role="tablist" aria-label="Live sessions" hidden></div>
   <div id="viewing" hidden></div>
   <main id="scroll">
     <div id="ptr" aria-hidden="true"></div>
@@ -902,15 +908,15 @@ var PHONE = (function () {
   function sessions(st, ended, nowMs) {
     var list = (st && st.sessions) || [], live = {};
     list.forEach(function (r) { if (r && r.live) { live[r.session_id] = true; } });
-    var stat = {};
-    list.forEach(function (r) { if (r && typeof r.status === "string") { stat[r.session_id] = r.status; } });
-    var rs = GTCON.historyRows(list, [], "", [], nowMs).map(function (r) { r.promptable = !!live[r.sid]; r.status = stat[r.sid] || ""; return r; });
+    var stat = {}, foc = {};
+    list.forEach(function (r) { if (r && typeof r.status === "string") { stat[r.session_id] = r.status; } if (r && r.focus) { foc[r.session_id] = true; } });
+    var rs = GTCON.historyRows(list, [], "", [], nowMs).map(function (r) { r.promptable = !!live[r.sid]; r.focus = !!foc[r.sid]; r.status = stat[r.sid] || ""; return r; });
     rs = rs.filter(function (r) { return ended || r.live; });
     rs.sort(function (a, b) { return (b.promptable ? 1 : 0) - (a.promptable ? 1 : 0); });
     return rs;
   }
   // What each scope lets this phone send (gt_phone_relay.SCOPES): the Mac checks again, this only shows early.
-  var SCOPE_TYPES = { watch: ["hello", "view"],
+  var SCOPE_TYPES = { watch: ["hello", "view", "focus"],
                       approve: ["approve", "deny", "answer", "stop", "interrupt", "accept_audit_cut", "window_close", "integrity_restore"],
                       approve_effects: ["access_decide"], grant_watch: ["follow"], dispatch: ["prompt", "setting"] };
   // May a phone paired with `scopes` send `type`? Unknown scopes (an older feed): yes, the Mac decides.
@@ -1444,6 +1450,10 @@ function renderCards() {
     const w = PHONE.card(c, prefs, last.settings, level), n = el("div", "card");
     n.setAttribute("role", "group"); n.setAttribute("aria-label", w.title);
     n.appendChild(el("h3", null, w.title));
+    if (typeof c.session === "string" && c.session !== s.id) {          // a request from another live session
+      const row = (last.sessions || []).filter(r => r.session_id === c.session)[0];
+      n.appendChild(el("div", "why", "From another session" + (row && row.first_prompt ? ": " + row.first_prompt.slice(0, 40) : "")));
+    }
     const asking = c.kind === "question" && w.allow && Array.isArray(c.questions) && c.questions.length > 0;
     const picks = cardPicks[c.request_id] || (cardPicks[c.request_id] = {});
     if (asking) {
@@ -1468,7 +1478,8 @@ function renderCards() {
     if (c.expires_at) n.appendChild(el("div", "left", "No answer by " + GTCON.clock(c.expires_at) + " counts as Deny."));
     const held = PHONE.heldWhy(last), blocked = () => !!cardLocked[c.request_id] || !!PHONE.heldWhy(last);
     const row = el("div", "btns"), ready = GTCON.cardReady(cardsShown[c.request_id], now), locked = !!cardLocked[c.request_id] || !!held;
-    const body = { session: s.id, request_id: c.request_id, action_hash: c.action_hash };
+    const other = typeof c.session === "string" && c.session !== s.id;
+    const body = { session: other ? c.session : s.id, request_id: c.request_id, action_hash: c.action_hash };
     const deny = el("button", w.primary === "deny" ? "primary" : "danger", asking ? "Decline" : "Deny"); deny.type = "button";
     deny.disabled = !ready || locked;
     deny.onclick = () => { if (!GTCON.cardReady(cardsShown[c.request_id], Date.now()) || blocked()) return; cardLocked[c.request_id] = true; act("deny", body, null); renderCards(); };
@@ -1642,6 +1653,22 @@ function renderAcks() {
 }
 // The Mac's alerts (feed `alerts`: fixed text, rising ids): the newest three not dismissed here, a buzz for a new one that needs
 // you. Dismissals are kept on this phone only. The first feed read never buzzes for what was already there.
+// Several live sessions at once (like the Claude app): one chip each; the chosen one is what the page shows and the composer
+// writes to. A dot marks a session that is asking you. Shown only when there are two or more.
+function renderSessbar() {
+  const box = $("sessbar"); clear(box);
+  const live = (last && Array.isArray(last.sessions) ? last.sessions : []).filter(r => r && r.live);
+  box.hidden = viewing || live.length < 2;
+  if (box.hidden) return;
+  live.forEach((r, i) => {
+    const asking = r.status === "asking you";
+    const b = el("button", null, (asking ? "● " : "") + (r.first_prompt ? r.first_prompt.slice(0, 22) : "Session " + (i + 1)));
+    b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", r.focus ? "true" : "false");
+    b.title = (r.status ? r.status + " · " : "") + (r.model || "");
+    b.onclick = () => { if (!r.focus) { act("focus", { session: r.session_id }, null); say("note", "Switching to that session…"); } };
+    box.appendChild(b);
+  });
+}
 let alertTop = null;
 function alertsGone() { try { const g = JSON.parse(store.get("alertsGone") || "[]"); return Array.isArray(g) ? g : []; } catch (e) { return []; } }
 function renderAlerts() {
@@ -1701,6 +1728,7 @@ function renderAll() {
   renderAcks();
   renderConn();
   renderAlerts();
+  renderSessbar();
   renderChips();
   renderViewing();
   renderLog(currentEvents(), currentOpen());
@@ -1748,7 +1776,7 @@ function openSessions() {
     btn.appendChild(el("span", "sub", [r.promptable ? "live: prompts go here" : r.stateWord, r.status, r.model, r.live ? "started " + r.started : "ended " + (r.ended || r.started)].filter(Boolean).join(" · ")));
     btn.onclick = () => {
       closeSheet();
-      if (r.promptable) { viewing = null; viewDoc = null; }
+      if (r.promptable) { viewing = null; viewDoc = null; if (!r.focus) { act("focus", { session: r.sid }, null); say("note", "Switching to that session…"); } }
       else { viewing = r.sid; viewDoc = null; askView(r.sid); }
       rowsSeen = {}; renderAll();
     };
